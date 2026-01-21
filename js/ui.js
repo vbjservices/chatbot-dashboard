@@ -59,7 +59,7 @@ export function renderConversationList(conversations, activeId, onSelect) {
     item.className = `list-item${isActive ? " active" : ""}`;
 
     const question =
-      (c.messages?.find(m => m.role === "user")?.content) ||
+      (c.messages?.find(m => m.role === "User")?.content) ||
       c.user_message ||
       "(geen vraag)";
 
@@ -160,7 +160,7 @@ export function renderFailedTable(rows) {
     const created = r.updated_at || r.created_at;
     const channel = r.channel || r.workspace_id || "—";
     const type = r.type || "—";
-    const q = r.user_message || r.messages?.find(m => m.role === "user")?.content || "";
+    const q = r.user_message || r.messages?.find(m => m.role === "User")?.content || "";
     const reason = r.reason || r.outcome?.reason || "—";
 
     const tr = document.createElement("tr");
@@ -199,7 +199,7 @@ export function renderEscalationTable(rows) {
   for (const r of top) {
     const created = r.updated_at || r.created_at;
     const channel = r.channel || r.workspace_id || "—";
-    const q = r.user_message || r.messages?.find(m => m.role === "user")?.content || "";
+    const q = r.user_message || r.messages?.find(m => m.role === "User")?.content || "";
     const action = "Follow-up";
     const lead = (r.lead ?? r.outcome?.lead) ? "Yes" : "No";
 
@@ -234,9 +234,9 @@ function renderMsgWithStatus(m) {
   const st = inferMessageStatus(m);
 
   const cls =
-    role === "user"
+    role === "User"
       ? "msg user"
-      : role === "assistant"
+      : role === "Assistant"
       ? "msg bot"
       : "msg system";
 
@@ -277,7 +277,7 @@ function inferMessageStatus(m) {
   if (failed) return { kind: "bad", text: "Failed" };
 
   // Heuristiek (failsafe)
-  if (role === "assistant" || role === "system") {
+  if (role === "Assistant" || role === "system") {
     if (
       t.includes("info@") ||
       t.includes("klantenservice") ||

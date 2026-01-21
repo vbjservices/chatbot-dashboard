@@ -54,7 +54,8 @@ export function normalizeChatEvent(row) {
     workspace_id: row?.workspace_id ?? row?.workspace ?? "unknown",
     bot_key: row?.bot_key ?? null,
 
-    conversation_id: row?.conversation_id ?? row?.sessionId ?? row?.session_id ?? "unknown",
+    conversation_id:
+      row?.conversation_id ?? row?.sessionId ?? row?.session_id ?? "unknown",
     created_at: createdAt,
     updated_at: createdAt,
 
@@ -87,9 +88,10 @@ export function normalizeChatEvent(row) {
     },
 
     // UI verwacht "messages" (voor tables/detail)
+    // Roles: netjes met hoofdletter
     messages: [
-      { role: "user", content: user_message, at: createdAt },
-      { role: "assistant", content: ai_output, at: createdAt },
+      { role: "User", content: user_message, at: createdAt },
+      { role: "Assistant", content: ai_output, at: createdAt },
     ],
   };
 }
@@ -98,8 +100,10 @@ export function normalizeChatEvent(row) {
  * Groepeer turns per conversation_id naar conversation objecten
  * zodat de viewer links/rechts werkt.
  *
- * LET OP: success/escalation/etc op conversation-level is OR over turns.
- * KPIs/charts doen we in app.js op TURN-level (dus eerlijk).
+ * LET OP:
+ * - KPIs/charts doen we in app.js op TURN-level (dus eerlijk).
+ * - Conversation-level outcome is OR over turns (samenvatting).
+ * - Messages worden VERRIJKT met turn metadata zodat UI per antwoord status kan tonen.
  */
 export function groupTurnsToConversations(turns) {
   const map = new Map();
@@ -120,7 +124,11 @@ export function groupTurnsToConversations(turns) {
 
         messages: [],
         outcome: { success: false, escalated: false, lead: false, reason: null },
-        metrics: { tokens: 0, total_cost: 0, latency_ms_p95: null },
+        metrics: {
+          tokens: 0,
+          total_cost: 0,
+          latency_ms_p95: null, // (optioneel later)
+        },
 
         _turns: 0,
       });
@@ -136,11 +144,53 @@ export function groupTurnsToConversations(turns) {
       convo.updated_at = t.created_at;
     }
 
-    // messages
-    if (t.user_message) convo.messages.push({ role: "user", content: t.user_message, at: t.created_at });
-    if (t.ai_output) convo.messages.push({ role: "assistant", content: t.ai_output, at: t.created_at });
+    // messages (VERRIJKT)
+    // User message krijgt turn-id, maar status is "User" (geen succes/fail)
+    if (t.user_message) {
+      convo.messages.push({
+        role: "User",
+        content: t.user_message,
+        at: t.created_at,
 
-    // aggregaties
+        // koppeling naar turn
+        turn_id: t.id ?? null,
+        event_id: t.event_id ?? null,
+
+        // meta (handig voor debugging/UI indien gewenst)
+        channel: t.channel ?? null,
+        type: t.type ?? null,
+        topic: t.topic ?? null,
+      });
+    }
+
+    // Assistant message krijgt DE status waar we om geven
+    if (t.ai_output) {
+      convo.messages.push({
+        role: "Assistant",
+        content: t.ai_output,
+        at: t.created_at,
+
+        turn_id: t.id ?? null,
+        event_id: t.event_id ?? null,
+
+        success: !!t.success,
+        escalated: !!t.escalated,
+        lead: !!t.lead,
+        reason: t.reason ?? null,
+
+        // metrics per antwoord/row
+        latency_ms: t.metrics?.latency_ms ?? null,
+        tokens: numOrZero(t.metrics?.tokens ?? 0),
+        total_cost: numOrZero(t.metrics?.total_cost ?? 0),
+
+        // context
+        channel: t.channel ?? null,
+        type: t.type ?? null,
+        topic: t.topic ?? null,
+      });
+    }
+
+    // aggregaties (conversation summary)
     convo._turns += 1;
     convo.outcome.success = convo.outcome.success || !!t.success;
     convo.outcome.escalated = convo.outcome.escalated || !!t.escalated;
@@ -160,7 +210,7 @@ export function groupTurnsToConversations(turns) {
     c.messages.sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));
   }
 
-  // newest conversations first
+  // newest conversations first ✅
   conversations.sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")));
 
   return conversations;
@@ -208,7 +258,6 @@ function inferSuccess({ ai_output, escalated, products }) {
     text.includes("niet genoeg informatie") ||
     text.includes("ik begrijp je vraag niet");
 
-  // success als: producthits of link of duidelijke vervolgvraag, zolang niet fallback
   const hasProducts = Array.isArray(products) && products.length > 0;
   const hasNextQuestion =
     text.includes("?") &&
