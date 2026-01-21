@@ -111,18 +111,29 @@
 
     <!-- Charts -->
     <section class="grid charts-grid">
+      <!-- NEW: Today success ring -->
+      <div class="card">
+        <div class="card-title">Vandaag: Success rate</div>
+        <div class="donut-wrap">
+          <canvas id="chartTodaySuccess"></canvas>
+        </div>
+      </div>
+
       <div class="card">
         <div class="card-title">Conversations per dag</div>
         <canvas id="chartConvos"></canvas>
       </div>
+
       <div class="card">
         <div class="card-title">Top topics</div>
         <canvas id="chartTopics"></canvas>
       </div>
+
       <div class="card">
         <div class="card-title">Outcomes</div>
         <canvas id="chartOutcomes"></canvas>
       </div>
+
       <div class="card">
         <div class="card-title">Latency (p95)</div>
         <canvas id="chartLatency"></canvas>

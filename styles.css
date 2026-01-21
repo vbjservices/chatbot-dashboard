@@ -194,10 +194,75 @@ input{min-width:260px}
   font-size:12px;
 }
 
+/* Donut wrap for nice sizing */
+.donut-wrap{
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+/* =========================
+   Mobile / responsive upgrades
+   ========================= */
+
+canvas { max-width: 100% !important; }
+
+.btn, select, input { min-height: 44px; }
+.filters-row { align-items: stretch; }
+
+.table-wrap { -webkit-overflow-scrolling: touch; }
+.table thead th, .table tbody td { white-space: nowrap; }
+
+.msg .content {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 1100px){
-  .kpi-grid{grid-template-columns: repeat(3, minmax(0,1fr))}
-  .charts-grid{grid-template-columns: 1fr}
-  .tables-grid{grid-template-columns: 1fr}
-  .split{grid-template-columns: 1fr}
-  input{min-width: 180px}
+  .container { padding: 0 14px; }
+  .kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .charts-grid { grid-template-columns: 1fr; }
+  .tables-grid { grid-template-columns: 1fr; }
+  .split { grid-template-columns: 1fr; min-height: auto; }
+  .field { min-width: 180px; }
+  input { min-width: 220px; }
+}
+
+@media (max-width: 640px){
+  .topbar {
+    gap: 10px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .top-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .brand { justify-content: flex-start; }
+  .container { margin: 14px auto; padding: 0 12px; }
+
+  .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .kpi-value { font-size: 24px; }
+
+  .card { padding: 12px; border-radius: 14px; }
+  .logo { width: 34px; height: 34px; border-radius: 12px; }
+
+  .filters-row { gap: 10px; }
+  .field { min-width: 100%; }
+  input, select { width: 100%; }
+
+  .pill { width: fit-content; }
+
+  .list { max-height: 320px; }
+  .list-item { padding: 11px; }
+  .list-q { font-size: 13px; }
+
+  .detail { padding: 10px; }
+  .msg { padding: 10px; }
+}
+
+@media (max-width: 420px){
+  .top-actions { grid-template-columns: 1fr; }
+  .kpi-grid { grid-template-columns: 1fr; }
+  .kpi-value { font-size: 22px; }
 }
