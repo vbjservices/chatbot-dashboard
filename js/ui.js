@@ -34,7 +34,10 @@ export function setKPI(id, value) {
 }
 
 /**
- * Conversation list (links)
+ * Conversation list:
+ * - Vraag (user) BOVEN
+ * - Meta (tijd • site/kanaal • type/topic) ONDER
+ * - Badge rechts (conversation-level)
  */
 export function renderConversationList(conversations, activeId, onSelect) {
   const root = document.getElementById("convoList");
@@ -56,11 +59,12 @@ export function renderConversationList(conversations, activeId, onSelect) {
     item.className = `list-item${isActive ? " active" : ""}`;
 
     const question =
-      (c.messages?.find((m) => m.role === "user")?.content) ||
+      (c.messages?.find(m => m.role === "user")?.content) ||
+      c.user_message ||
       "(geen vraag)";
 
     const when = fmtDateTime(c.updated_at || c.created_at);
-    const site = c.workspace_id || c.channel || "—";
+    const site = c.workspace_id || c.site || c.channel || "—";
     const typeTopic = formatTypeTopic(c);
 
     const qDiv = document.createElement("div");
@@ -71,7 +75,7 @@ export function renderConversationList(conversations, activeId, onSelect) {
     top.className = "list-top";
     top.innerHTML = `
       <span>${escapeHTML(`${when} • ${site} • ${typeTopic}`)}</span>
-      ${badgeHTMLFromOutcome(c)}
+      <span class="badge ${badgeClassConversation(c)}">${escapeHTML(badgeTextConversation(c))}</span>
     `;
 
     item.appendChild(qDiv);
@@ -83,9 +87,9 @@ export function renderConversationList(conversations, activeId, onSelect) {
 }
 
 /**
- * Conversation detail (rechts)
- * 🔥 FIX: messages DESC (nieuw->oud)
- * 🔥 FIX: cost/tokens bovenaan in header
+ * Conversation detail:
+ * - Header met total cost bovenaan (niet onderaan scrollen)
+ * - Per message bubble een status-chip (Success / Failed / Support)
  */
 export function renderConversationDetail(convo) {
   const root = document.getElementById("convoDetail");
@@ -97,20 +101,13 @@ export function renderConversationDetail(convo) {
   }
 
   const id = stableConvoId(convo) || "—";
-  const updated = fmtDateTime(convo.updated_at || convo.created_at);
 
-  const tokens = Number(convo.metrics?.tokens ?? 0);
-  const cost = Number(convo.metrics?.total_cost ?? 0);
-  const turns = Number(convo._turns ?? 0);
+  // cost/tokens bovenaan (en niet alleen onderaan)
+  const tokens = fmtNum(convo.metrics?.tokens);
+  const cost = fmtMoney(convo.metrics?.total_cost);
 
-  // latency: als je sum gebruikt is dit geen p95, maar beter dan niets
-  const latencySum = Number(convo.metrics?.latency_ms ?? 0);
-  const latencyAvg = turns ? Math.round(latencySum / turns) : 0;
-
-  // 🔥 messages newest-first
-  const msgs = [...(convo.messages || [])].sort((a, b) =>
-    String(b.at || "").localeCompare(String(a.at || ""))
-  );
+  // messages: verwacht newest->oldest (jij sorteert dat nu in normalize)
+  const msgs = Array.isArray(convo.messages) ? convo.messages : [];
 
   root.innerHTML = `
     <div class="detail-head">
@@ -120,49 +117,57 @@ export function renderConversationDetail(convo) {
           ${escapeHTML(convo.workspace_id || convo.channel || "—")} •
           ${escapeHTML(convo.type || "—")} •
           ${escapeHTML(convo.topic || "—")} •
-          Updated: ${escapeHTML(updated)}
+          Updated: ${escapeHTML(fmtDateTime(convo.updated_at || convo.created_at))}
         </div>
       </div>
 
       <div class="detail-badges">
         ${badge(convo.outcome?.success ? "Success" : "Not success", convo.outcome?.success ? "ok" : "bad")}
-        ${badge(convo.outcome?.escalated ? "Escalated" : "—", convo.outcome?.escalated ? "warn" : "muted")}
+        ${badge(convo.outcome?.escalated ? "Support" : "—", convo.outcome?.escalated ? "warn" : "muted")}
         ${badge(convo.outcome?.lead ? "Lead" : "—", convo.outcome?.lead ? "ok" : "muted")}
-        ${badge(`Turns: ${fmtNum(turns)}`, "muted")}
-        ${badge(`Tokens: ${fmtNum(tokens)}`, "muted")}
-        ${badge(`Cost: $${fmtMoney(cost)}`, "muted")}
-        ${badge(`Avg latency: ${fmtNum(latencyAvg)}ms`, "muted")}
       </div>
     </div>
 
+    <div class="detail-metrics-top">
+      <div class="detail-metric">Tokens: <strong>${tokens}</strong></div>
+      <div class="detail-metric">Cost (USD): <strong>${cost}</strong></div>
+    </div>
+
     <div class="detail-messages">
-      ${msgs.map(renderMsg).join("")}
+      ${msgs.map(renderMsgWithStatus).join("")}
     </div>
   `;
 }
 
 /**
- * TURN-LEVEL tables
+ * failedTable HTML heeft kolommen:
  * Datum | Kanaal | Type | Vraag | Reason
+ *
+ * rows kan turns OF convos zijn; wij verwachten turns (zoals jouw app.js nu doet)
  */
-export function renderFailedTable(turns) {
+export function renderFailedTable(rows) {
   const tbl = document.getElementById("failedTable");
   if (!tbl) return;
+
   const body = tbl.querySelector("tbody");
   if (!body) return;
 
   body.innerHTML = "";
-  const top = (turns || []).slice(0, 12);
 
-  for (const t of top) {
-    const q = t.user_message || "";
-    const reason = t.reason || t.outcome?.reason || "—";
+  const top = (rows || []).slice(0, 12);
+
+  for (const r of top) {
+    const created = r.updated_at || r.created_at;
+    const channel = r.channel || r.workspace_id || "—";
+    const type = r.type || "—";
+    const q = r.user_message || r.messages?.find(m => m.role === "user")?.content || "";
+    const reason = r.reason || r.outcome?.reason || "—";
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${escapeHTML(fmtDateTime(t.created_at || t.updated_at))}</td>
-      <td>${escapeHTML(t.channel || t.workspace_id || "—")}</td>
-      <td>${escapeHTML(t.type || "—")}</td>
+      <td>${escapeHTML(fmtDateTime(created))}</td>
+      <td>${escapeHTML(channel)}</td>
+      <td>${escapeHTML(type)}</td>
       <td title="${escapeHTML(q)}">${escapeHTML(truncate(q, 80))}</td>
       <td>${escapeHTML(reason)}</td>
     `;
@@ -171,32 +176,37 @@ export function renderFailedTable(turns) {
 
   if (!top.length) {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="5" class="muted">Geen failed chats.</td>`;
+    tr.innerHTML = `<td colspan="5" class="muted">Geen failed conversaties.</td>`;
     body.appendChild(tr);
   }
 }
 
 /**
+ * escalationTable HTML heeft kolommen:
  * Datum | Kanaal | Vraag | Actie | Lead
  */
-export function renderEscalationTable(turns) {
+export function renderEscalationTable(rows) {
   const tbl = document.getElementById("escalationTable");
   if (!tbl) return;
+
   const body = tbl.querySelector("tbody");
   if (!body) return;
 
   body.innerHTML = "";
-  const top = (turns || []).slice(0, 12);
 
-  for (const t of top) {
-    const q = t.user_message || "";
+  const top = (rows || []).slice(0, 12);
+
+  for (const r of top) {
+    const created = r.updated_at || r.created_at;
+    const channel = r.channel || r.workspace_id || "—";
+    const q = r.user_message || r.messages?.find(m => m.role === "user")?.content || "";
     const action = "Follow-up";
-    const lead = (t.lead ?? t.outcome?.lead) ? "Yes" : "No";
+    const lead = (r.lead ?? r.outcome?.lead) ? "Yes" : "No";
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${escapeHTML(fmtDateTime(t.created_at || t.updated_at))}</td>
-      <td>${escapeHTML(t.channel || t.workspace_id || "—")}</td>
+      <td>${escapeHTML(fmtDateTime(created))}</td>
+      <td>${escapeHTML(channel)}</td>
       <td title="${escapeHTML(q)}">${escapeHTML(truncate(q, 80))}</td>
       <td>${escapeHTML(action)}</td>
       <td>${escapeHTML(lead)}</td>
@@ -211,45 +221,133 @@ export function renderEscalationTable(turns) {
   }
 }
 
-/* ---------- helpers ---------- */
+/* =========================
+   Message rendering w/ status
+   ========================= */
+
+function renderMsgWithStatus(m) {
+  const role = m?.role || "unknown";
+  const at = m?.at ? fmtDateTime(m.at) : "—";
+  const content = m?.content || "";
+
+  // status per antwoord: alleen meaningful op assistant/system (maar we tonen ook op user voor consistentie)
+  const st = inferMessageStatus(m);
+
+  const cls =
+    role === "user"
+      ? "msg user"
+      : role === "assistant"
+      ? "msg bot"
+      : "msg system";
+
+  // status chip style (badge ok/warn/bad/muted)
+  const chip = st?.text
+    ? `<span class="badge ${st.kind}">${escapeHTML(st.text)}</span>`
+    : `<span class="badge muted">—</span>`;
+
+  return `
+    <div class="${cls}">
+      <div class="meta">
+        <span>${escapeHTML(role)} • ${escapeHTML(at)}</span>
+        ${chip}
+      </div>
+      <div class="content">${escapeHTML(content)}</div>
+    </div>
+  `;
+}
+
+/**
+ * Probeert status op message-level te pakken:
+ * 1) m.escalated/m.success/m.failed/m.reason als je ze meegeeft (beste)
+ * 2) anders heuristiek op content
+ */
+function inferMessageStatus(m) {
+  const role = String(m?.role || "").toLowerCase();
+  const text = String(m?.content || "");
+  const t = text.toLowerCase();
+
+  // Als jij straks turn-metadata aan assistant messages hangt:
+  // { success, escalated, reason } → dan pakt dit dat direct.
+  const escalated = m?.escalated === true;
+  const success = m?.success === true;
+  const failed = m?.failed === true;
+
+  if (escalated) return { kind: "warn", text: "Support" };
+  if (success) return { kind: "ok", text: "Success" };
+  if (failed) return { kind: "bad", text: "Failed" };
+
+  // Heuristiek (failsafe)
+  if (role === "assistant" || role === "system") {
+    if (
+      t.includes("info@") ||
+      t.includes("klantenservice") ||
+      t.includes("customer service") ||
+      t.includes("verkoop") ||
+      /\+?\d[\d\s()-]{6,}/.test(t)
+    ) return { kind: "warn", text: "Support" };
+
+    const isFallback =
+      t.includes("ik weet het niet") ||
+      t.includes("dat kan ik niet") ||
+      t.includes("niet genoeg informatie") ||
+      t.includes("ik begrijp je vraag niet");
+
+    if (isFallback) return { kind: "bad", text: "Failed" };
+
+    const hasLink = /https?:\/\/\S+/i.test(text);
+    const hasNext =
+      t.includes("?") &&
+      (t.includes("artikel") ||
+        t.includes("maat") ||
+        t.includes("kleur") ||
+        t.includes("formaat") ||
+        t.includes("kun je") ||
+        t.includes("kunt u") ||
+        t.includes("wil je"));
+
+    if (hasLink || hasNext) return { kind: "ok", text: "Success" };
+
+    // unknown: niet liegen
+    return { kind: "muted", text: "Unknown" };
+  }
+
+  // user message: geen success/fail betekenis
+  return { kind: "muted", text: "User" };
+}
+
+/* =========================
+   Conversation-level badges
+   ========================= */
+
+function badgeTextConversation(c) {
+  const o = c?.outcome || {};
+  if (o.escalated) return "Support";
+  if (o.success) return "Success";
+  if (o.reason) return "Failed";
+  return "—";
+}
+
+function badgeClassConversation(c) {
+  const o = c?.outcome || {};
+  if (o.escalated) return "warn";
+  if (o.success) return "ok";
+  if (o.reason) return "bad";
+  return "muted";
+}
+
+/* =========================
+   Helpers
+   ========================= */
 
 function stableConvoId(c) {
-  return String(c?.conversation_id || c?.event_id || "");
+  const v = c?.conversation_id || c?.event_id || "";
+  return String(v || "");
 }
 
 function formatTypeTopic(c) {
   const t = c?.type || "—";
   const topic = c?.topic ? ` / ${c.topic}` : "";
   return `${t}${topic}`;
-}
-
-function badgeHTMLFromOutcome(c) {
-  const o = c?.outcome || {};
-  if (o.escalated) return badge("Support", "warn");
-  if (o.success) return badge("Success", "ok");
-  if (o.reason) return badge("Failed", "bad");
-  return badge("—", "muted");
-}
-
-function renderMsg(m) {
-  const role = m?.role || "unknown";
-  const cls =
-    role === "user" ? "msg user" :
-    role === "assistant" ? "msg bot" :
-    "msg system";
-
-  const at = m?.at ? fmtDateTime(m.at) : "—";
-  const content = m?.content || "";
-
-  return `
-    <div class="${cls}">
-      <div class="meta">
-        <span>${escapeHTML(role)}</span>
-        <span>${escapeHTML(at)}</span>
-      </div>
-      <div class="content">${escapeHTML(content)}</div>
-    </div>
-  `;
 }
 
 function badge(text, kind) {
@@ -259,7 +357,8 @@ function badge(text, kind) {
 function fmtDateTime(iso) {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleString();
+    const d = new Date(iso);
+    return d.toLocaleString();
   } catch {
     return String(iso);
   }
