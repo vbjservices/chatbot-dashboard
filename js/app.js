@@ -24,7 +24,8 @@ const state = {
   selectedId: null,
 
   filters: {
-    range: "7d",
+    // IMPORTANT: match HTML values ("7","14","30") OR accept "7d" etc.
+    range: "30",
     channel: "all",
     type: "all",
     search: "",
@@ -78,7 +79,7 @@ async function loadData({ preferNetwork = true } = {}) {
       setLastUpdatePill(new Date(state.lastLoadedAt).toLocaleString());
       setVersionPill(pickVersion(state.turns));
 
-      applyFiltersAndRender();
+      applyFiltersAndRender({ keepSelection: true });
       return;
     } catch (e) {
       console.warn("Supabase fetch failed:", e);
@@ -100,7 +101,7 @@ async function loadData({ preferNetwork = true } = {}) {
     setLastUpdatePill(state.lastLoadedAt ? new Date(state.lastLoadedAt).toLocaleString() : "—");
     setVersionPill(pickVersion(state.turns));
 
-    applyFiltersAndRender();
+    applyFiltersAndRender({ keepSelection: true });
     return;
   }
 
@@ -115,36 +116,43 @@ async function loadData({ preferNetwork = true } = {}) {
   setLastUpdatePill("—");
   setVersionPill("—");
 
-  applyFiltersAndRender();
+  applyFiltersAndRender({ keepSelection: false });
 }
 
 /* ---------------- render pipeline ---------------- */
 
-function applyFiltersAndRender() {
+function applyFiltersAndRender({ keepSelection = true } = {}) {
   const f = state.filters;
   const rangeSince = rangeToSinceISO(f.range);
 
   state.filtered = state.conversations
-    .filter((c) => !rangeSince || (c.updated_at || c.created_at) >= rangeSince)
+    .filter((c) => {
+      if (!rangeSince) return true;
+      const t = c.updated_at || c.created_at;
+      return !t || t >= rangeSince; // ISO string compare OK
+    })
     .filter((c) => f.channel === "all" || c.channel === f.channel)
     .filter((c) => f.type === "all" || c.type === f.type)
     .filter((c) => {
       if (!f.search) return true;
       const s = f.search.toLowerCase();
-      const blob = (c.messages || []).map(m => m.content).join("\n").toLowerCase();
-      return blob.includes(s) || String(c.conversation_id).toLowerCase().includes(s);
+      const blob = (c.messages || []).map((m) => m.content).join("\n").toLowerCase();
+      return blob.includes(s) || String(c.conversation_id || "").toLowerCase().includes(s);
     });
 
-  // default select
-  if (!state.selectedId || !state.filtered.some(c => c.conversation_id === state.selectedId)) {
-    state.selectedId = state.filtered[0]?.conversation_id || null;
+  // KEEP selection only if it still exists in filtered set
+  if (keepSelection && state.selectedId) {
+    const stillThere = state.filtered.some((c) => c.conversation_id === state.selectedId);
+    if (!stillThere) state.selectedId = null;
+  } else if (!keepSelection) {
+    state.selectedId = null;
   }
 
-  // KPIs
+  // KPIs (based on filtered)
   const total = state.filtered.length;
-  const success = state.filtered.filter(c => !!c.outcome?.success).length;
-  const escal = state.filtered.filter(c => !!c.outcome?.escalated).length;
-  const leads = state.filtered.filter(c => !!c.outcome?.lead).length;
+  const success = state.filtered.filter((c) => !!c.outcome?.success).length;
+  const escal = state.filtered.filter((c) => !!c.outcome?.escalated).length;
+  const leads = state.filtered.filter((c) => !!c.outcome?.lead).length;
 
   const cost = state.filtered.reduce((a, c) => a + Number(c.metrics?.total_cost ?? 0), 0);
 
@@ -162,16 +170,25 @@ function applyFiltersAndRender() {
   repopulateFilters();
 
   // List + detail
-  renderConversationList(state.filtered, state.selectedId, (id) => {
-    state.selectedId = id;
-    renderConversationDetail(state.filtered.find(c => c.conversation_id === id));
-  });
+  const onSelect = (id) => {
+    state.selectedId = id || null;
 
-  renderConversationDetail(state.filtered.find(c => c.conversation_id === state.selectedId));
+    // rerender list to update active state (paars)
+    renderConversationList(state.filtered, state.selectedId, onSelect);
+
+    // detail
+    const convo = state.filtered.find((c) => c.conversation_id === state.selectedId);
+    renderConversationDetail(convo || null);
+  };
+
+  renderConversationList(state.filtered, state.selectedId, onSelect);
+
+  const selected = state.filtered.find((c) => c.conversation_id === state.selectedId);
+  renderConversationDetail(selected || null);
 
   // Tables
-  const failed = state.filtered.filter(c => !c.outcome?.success);
-  const escalRows = state.filtered.filter(c => !!c.outcome?.escalated);
+  const failed = state.filtered.filter((c) => !c.outcome?.success);
+  const escalRows = state.filtered.filter((c) => !!c.outcome?.escalated);
 
   renderFailedTable(failed);
   renderEscalationTable(escalRows);
@@ -191,6 +208,9 @@ function wireUI() {
   const refreshBtn = document.getElementById("refreshBtn");
   const exportBtn = document.getElementById("exportBtn");
 
+  // Ensure state matches current UI value
+  if (rangeSelect) state.filters.range = rangeSelect.value;
+
   if (rangeSelect) {
     rangeSelect.addEventListener("change", () => {
       state.filters.range = rangeSelect.value;
@@ -202,21 +222,22 @@ function wireUI() {
   if (channelSelect) {
     channelSelect.addEventListener("change", () => {
       state.filters.channel = channelSelect.value;
-      applyFiltersAndRender();
+      // Geen auto-select bij filters: keepSelection = true (als hij nog bestaat)
+      applyFiltersAndRender({ keepSelection: true });
     });
   }
 
   if (typeSelect) {
     typeSelect.addEventListener("change", () => {
       state.filters.type = typeSelect.value;
-      applyFiltersAndRender();
+      applyFiltersAndRender({ keepSelection: true });
     });
   }
 
   if (searchInput) {
     searchInput.addEventListener("input", () => {
       state.filters.search = searchInput.value.trim();
-      applyFiltersAndRender();
+      applyFiltersAndRender({ keepSelection: true });
     });
   }
 
@@ -234,12 +255,12 @@ function repopulateFilters() {
   const typeSelect = document.getElementById("typeSelect");
 
   if (channelSelect) {
-    const channels = uniq(state.conversations.map(c => c.channel || "unknown")).sort();
+    const channels = uniq(state.conversations.map((c) => c.channel || "unknown")).sort();
     fillSelect(channelSelect, ["all", ...channels], state.filters.channel, "All channels");
   }
 
   if (typeSelect) {
-    const types = uniq(state.conversations.map(c => c.type || "chat")).sort();
+    const types = uniq(state.conversations.map((c) => c.type || "chat")).sort();
     fillSelect(typeSelect, ["all", ...types], state.filters.type, "All types");
   }
 }
@@ -264,8 +285,8 @@ function fillSelect(selectEl, values, selected, allLabel) {
 
 function exportCSV() {
   const rows = state.filtered.map((c) => {
-    const firstUser = c.messages?.find(m => m.role === "user")?.content || "";
-    const lastAssist = [...(c.messages || [])].reverse().find(m => m.role === "assistant")?.content || "";
+    const firstUser = c.messages?.find((m) => m.role === "user")?.content || "";
+    const lastAssist = [...(c.messages || [])].reverse().find((m) => m.role === "assistant")?.content || "";
     return {
       conversation_id: c.conversation_id,
       channel: c.channel,
@@ -295,10 +316,7 @@ function toCSV(rows) {
   if (!rows.length) return "";
   const cols = Object.keys(rows[0]);
   const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  return [
-    cols.join(","),
-    ...rows.map((r) => cols.map((c) => esc(r[c])).join(",")),
-  ].join("\n");
+  return [cols.join(","), ...rows.map((r) => cols.map((c) => esc(r[c])).join(","))].join("\n");
 }
 
 /* ---------------- helpers ---------------- */
@@ -307,10 +325,18 @@ function rangeToSinceISO(range) {
   const now = Date.now();
   const day = 24 * 60 * 60 * 1000;
 
+  // Accept HTML values: "7" "14" "30"
+  if (range === "7") return new Date(now - 7 * day).toISOString();
+  if (range === "14") return new Date(now - 14 * day).toISOString();
+  if (range === "30") return new Date(now - 30 * day).toISOString();
+
+  // Accept older style values too
   if (range === "24h") return new Date(now - 1 * day).toISOString();
   if (range === "7d") return new Date(now - 7 * day).toISOString();
+  if (range === "14d") return new Date(now - 14 * day).toISOString();
   if (range === "30d") return new Date(now - 30 * day).toISOString();
   if (range === "90d") return new Date(now - 90 * day).toISOString();
+
   return null; // "all"
 }
 
@@ -319,6 +345,6 @@ function uniq(arr) {
 }
 
 function pickVersion(turns) {
-  const v = turns.find(t => t.bot_key)?.bot_key;
+  const v = turns.find((t) => t.bot_key)?.bot_key;
   return v || "—";
 }
