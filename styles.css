@@ -134,6 +134,29 @@ select,input{
 
 input{min-width:0} /* fix: prevent overflow on mobile */
 
+/* =========================
+   Select dropdown options (FIX white-on-white)
+   ========================= */
+
+/* Dropdown list background */
+select option {
+  background-color: #0f1530;   /* iets donkerder dan card */
+  color: var(--text);
+}
+
+/* Hover / active state (voor browsers die dit ondersteunen) */
+select option:hover,
+select option:focus {
+  background-color: rgba(124,58,237,.35);
+  color: #fff;
+}
+
+/* Selected option */
+select option:checked {
+  background-color: rgba(124,58,237,.55);
+  color: #fff;
+}
+
 .pill{
   font-size:12px;
   color:rgba(232,238,252,.82);
