@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chatbot Dashboard</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">🤖</div>
+      <div>
+        <div class="brand-title">Chatbot Performance</div>
+        <div class="brand-subtitle" id="envLabel">Demo • Mock data</div>
+      </div>
+    </div>
+
+    <div class="top-actions">
+      <button class="btn" id="exportBtn">Export CSV</button>
+      <button class="btn btn-primary" id="refreshBtn">Refresh</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="filters card">
+      <div class="filters-row">
+        <div class="field">
+          <label>Periode</label>
+          <select id="rangeSelect">
+            <option value="7">Laatste 7 dagen</option>
+            <option value="14">Laatste 14 dagen</option>
+            <option value="30" selected>Laatste 30 dagen</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Kanaal</label>
+          <select id="channelSelect">
+            <option value="all" selected>Alle</option>
+            <option value="web">Web widget</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="email">Email</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Type</label>
+          <select id="typeSelect">
+            <option value="all" selected>Alle</option>
+            <option value="product">Product discovery</option>
+            <option value="policy">Beleid (retour/verzending)</option>
+            <option value="general">Algemeen</option>
+            <option value="unknown">Onbekend</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Zoek</label>
+          <input id="searchInput" placeholder="Zoek in vragen/antwoorden…" />
+        </div>
+      </div>
+
+      <div class="filters-row">
+        <div class="pill" id="versionPill">Version: v1</div>
+        <div class="pill" id="lastUpdatePill">Last update: —</div>
+        <div class="pill status ok" id="statusPill">Status: Running</div>
+      </div>
+    </section>
+
+    <!-- Executive KPIs -->
+    <section class="grid kpi-grid">
+      <div class="kpi card">
+        <div class="kpi-label">Success rate</div>
+        <div class="kpi-value" id="kpiSuccess">—</div>
+        <div class="kpi-help">Succes = antwoord of product match of goede vervolgstap</div>
+      </div>
+
+      <div class="kpi card">
+        <div class="kpi-label">Escalation rate</div>
+        <div class="kpi-value" id="kpiEscalation">—</div>
+        <div class="kpi-help">Doorgestuurd naar mens/support</div>
+      </div>
+
+      <div class="kpi card">
+        <div class="kpi-label">Conversations</div>
+        <div class="kpi-value" id="kpiConvos">—</div>
+        <div class="kpi-help">Aantal chats in periode</div>
+      </div>
+
+      <div class="kpi card">
+        <div class="kpi-label">Leads captured</div>
+        <div class="kpi-value" id="kpiLeads">—</div>
+        <div class="kpi-help">Contactgegevens achtergelaten</div>
+      </div>
+
+      <div class="kpi card">
+        <div class="kpi-label">Low-confidence answers</div>
+        <div class="kpi-value" id="kpiLowConf">—</div>
+        <div class="kpi-help">Risico: onzekere antwoorden</div>
+      </div>
+
+      <div class="kpi card">
+        <div class="kpi-label">Cost (est.)</div>
+        <div class="kpi-value" id="kpiCost">—</div>
+        <div class="kpi-help">Tokenschatting (demo)</div>
+      </div>
+    </section>
+
+    <!-- Charts -->
+    <section class="grid charts-grid">
+      <div class="card">
+        <div class="card-title">Conversations per dag</div>
+        <canvas id="chartConvos"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">Top topics</div>
+        <canvas id="chartTopics"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">Outcomes</div>
+        <canvas id="chartOutcomes"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">Latency (p95)</div>
+        <canvas id="chartLatency"></canvas>
+      </div>
+    </section>
+
+    <!-- Ops + Training tables -->
+    <section class="grid tables-grid">
+      <div class="card">
+        <div class="card-title">Unanswered / Failed questions</div>
+        <div class="table-wrap">
+          <table class="table" id="failedTable">
+            <thead>
+              <tr>
+                <th>Datum</th>
+                <th>Kanaal</th>
+                <th>Type</th>
+                <th>Vraag</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Escalations (handover queue)</div>
+        <div class="table-wrap">
+          <table class="table" id="escalationTable">
+            <thead>
+              <tr>
+                <th>Datum</th>
+                <th>Kanaal</th>
+                <th>Vraag</th>
+                <th>Actie</th>
+                <th>Lead</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Conversation viewer -->
+    <section class="card">
+      <div class="card-title">Conversation viewer</div>
+      <div class="split">
+        <div class="list" id="convoList"></div>
+        <div class="detail" id="convoDetail">
+          <div class="empty">Selecteer een gesprek links.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div>© Dashboard demo • Later: Supabase + n8n events</div>
+  </footer>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
