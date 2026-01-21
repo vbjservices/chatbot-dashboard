@@ -137,30 +137,42 @@ function applyFiltersAndRender({ keepSelection = true } = {}) {
     });
 
   // 2) FILTER CONVERSATIONS (voor viewer) op basis van turns die overblijven
-  const allowedConvoIds = new Set(state.filteredTurns.map(t => t.conversation_id));
-  state.filteredConvos = state.conversations.filter(c => allowedConvoIds.has(c.conversation_id));
+  const allowedConvoIds = new Set(state.filteredTurns.map((t) => t.conversation_id));
+  state.filteredConvos = state.conversations.filter((c) => allowedConvoIds.has(c.conversation_id));
+
+  // 🔥 FIX: sorteer gesprekken newest-first op updated_at/created_at
+  state.filteredConvos.sort((a, b) => {
+    const ta = a.updated_at || a.created_at || "";
+    const tb = b.updated_at || b.created_at || "";
+    return String(tb).localeCompare(String(ta)); // DESC
+  });
 
   // selection handling (viewer)
   if (keepSelection && state.selectedId) {
-    const stillThere = state.filteredConvos.some(c => c.conversation_id === state.selectedId);
+    const stillThere = state.filteredConvos.some((c) => c.conversation_id === state.selectedId);
     if (!stillThere) state.selectedId = null;
   } else if (!keepSelection) {
     state.selectedId = null;
   }
 
-  // KPIs — OP TURN LEVEL (niet liegen)
+  // default: selecteer nieuwste convo als niets gekozen
+  if (!state.selectedId) {
+    state.selectedId = state.filteredConvos[0]?.conversation_id || null;
+  }
+
+  // KPIs — OP TURN LEVEL
   const totalChats = state.filteredTurns.length;
-  const successChats = state.filteredTurns.filter(t => !!(t.success ?? t.outcome?.success)).length;
-  const escalChats = state.filteredTurns.filter(t => !!(t.escalated ?? t.outcome?.escalated)).length;
-  const leadChats = state.filteredTurns.filter(t => !!(t.lead ?? t.outcome?.lead)).length;
+  const successChats = state.filteredTurns.filter((t) => !!(t.success ?? t.outcome?.success)).length;
+  const escalChats = state.filteredTurns.filter((t) => !!(t.escalated ?? t.outcome?.escalated)).length;
+  const leadChats = state.filteredTurns.filter((t) => !!(t.lead ?? t.outcome?.lead)).length;
 
   const cost = state.filteredTurns.reduce((a, t) => a + Number(t.metrics?.total_cost ?? 0), 0);
 
   setKPI("kpiSuccess", totalChats ? `${Math.round((successChats / totalChats) * 100)}%` : "0%");
   setKPI("kpiEscalation", totalChats ? `${Math.round((escalChats / totalChats) * 100)}%` : "0%");
-  setKPI("kpiConvos", String(state.filteredTurns.length)); // aantal chats/rows in periode
+  setKPI("kpiConvos", String(state.filteredTurns.length)); // aantal chats/rows
   setKPI("kpiLeads", String(leadChats));
-  setKPI("kpiLowConf", "0"); // nog niet beschikbaar
+  setKPI("kpiLowConf", "0");
   setKPI("kpiCost", `$${cost.toFixed(6)}`);
 
   repopulateFilters();
@@ -179,9 +191,9 @@ function applyFiltersAndRender({ keepSelection = true } = {}) {
   const selected = state.filteredConvos.find((c) => c.conversation_id === state.selectedId);
   renderConversationDetail(selected || null);
 
-  // Tables — OP TURN LEVEL (anders mis je failures)
-  const failedTurns = state.filteredTurns.filter(t => !(t.success ?? t.outcome?.success));
-  const escalTurns = state.filteredTurns.filter(t => !!(t.escalated ?? t.outcome?.escalated));
+  // Tables — OP TURN LEVEL
+  const failedTurns = state.filteredTurns.filter((t) => !(t.success ?? t.outcome?.success));
+  const escalTurns = state.filteredTurns.filter((t) => !!(t.escalated ?? t.outcome?.escalated));
 
   renderFailedTable(failedTurns);
   renderEscalationTable(escalTurns);
@@ -240,12 +252,12 @@ function repopulateFilters() {
   const typeSelect = document.getElementById("typeSelect");
 
   if (channelSelect) {
-    const channels = uniq(state.turns.map(t => (t.channel || t.workspace_id || "unknown"))).sort();
+    const channels = uniq(state.turns.map((t) => t.channel || t.workspace_id || "unknown")).sort();
     fillSelect(channelSelect, ["all", ...channels], state.filters.channel, "Alle kanalen");
   }
 
   if (typeSelect) {
-    const types = uniq(state.turns.map(t => (t.type || "unknown"))).sort();
+    const types = uniq(state.turns.map((t) => t.type || "unknown")).sort();
     fillSelect(typeSelect, ["all", ...types], state.filters.type, "Alle types");
   }
 }
@@ -311,7 +323,6 @@ function rangeToSinceISO(range) {
   if (range === "14") return new Date(now - 14 * day).toISOString();
   if (range === "30") return new Date(now - 30 * day).toISOString();
 
-  // fallback (oude waarden)
   if (range === "7d") return new Date(now - 7 * day).toISOString();
   if (range === "14d") return new Date(now - 14 * day).toISOString();
   if (range === "30d") return new Date(now - 30 * day).toISOString();

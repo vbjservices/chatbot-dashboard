@@ -27,14 +27,22 @@ export function normalizeChatEvent(row) {
     inferSuccess({ ai_output, escalated, products })
   );
 
-  const reason = row?.reason ?? outcome?.reason ?? (success ? null : inferReason(ai_output, escalated));
+  const reason =
+    row?.reason ??
+    outcome?.reason ??
+    (success ? null : inferReason(ai_output, escalated));
 
   // type/topic (voor filters & charts)
   const type = row?.type ?? outcome?.type ?? inferType({ user_message, ai_output, products });
-  const topic = row?.topic ?? outcome?.topic ?? inferTopic({ products, escalated, user_message, ai_output });
+  const topic =
+    row?.topic ??
+    outcome?.topic ??
+    inferTopic({ products, escalated, user_message, ai_output });
 
   // latency: verwacht metrics.latency_ms, anders null (niet liegen met 0)
-  const latency_ms = numOrNull(metrics?.latency_ms ?? metrics?.latencyMs ?? row?.latency_ms ?? null);
+  const latency_ms = numOrNull(
+    metrics?.latency_ms ?? metrics?.latencyMs ?? row?.latency_ms ?? null
+  );
 
   // tokens/cost: best effort
   const tokens = numOrZero(metrics?.tokens ?? metrics?.total_tokens ?? 0);
@@ -121,8 +129,12 @@ export function groupTurnsToConversations(turns) {
     const convo = map.get(cid);
 
     // time range
-    if (!convo.created_at || (t.created_at && t.created_at < convo.created_at)) convo.created_at = t.created_at;
-    if (!convo.updated_at || (t.created_at && t.created_at > convo.updated_at)) convo.updated_at = t.created_at;
+    if (!convo.created_at || (t.created_at && t.created_at < convo.created_at)) {
+      convo.created_at = t.created_at;
+    }
+    if (!convo.updated_at || (t.created_at && t.created_at > convo.updated_at)) {
+      convo.updated_at = t.created_at;
+    }
 
     // messages
     if (t.user_message) convo.messages.push({ role: "user", content: t.user_message, at: t.created_at });
@@ -143,12 +155,12 @@ export function groupTurnsToConversations(turns) {
 
   const conversations = Array.from(map.values());
 
-  // sort msgs
+  // sort msgs: NEWEST FIRST (DESC) ✅
   for (const c of conversations) {
-    c.messages.sort((a, b) => String(a.at || "").localeCompare(String(b.at || "")));
+    c.messages.sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));
   }
 
-  // newest first
+  // newest conversations first
   conversations.sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")));
 
   return conversations;
@@ -168,6 +180,7 @@ function numOrZero(v) {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 }
+
 function numOrNull(v) {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
@@ -197,10 +210,15 @@ function inferSuccess({ ai_output, escalated, products }) {
 
   // success als: producthits of link of duidelijke vervolgvraag, zolang niet fallback
   const hasProducts = Array.isArray(products) && products.length > 0;
-  const hasNextQuestion = text.includes("?") && (
-    text.includes("artikel") || text.includes("maat") || text.includes("kleur") || text.includes("formaat") ||
-    text.includes("kun je") || text.includes("kunt u") || text.includes("wil je")
-  );
+  const hasNextQuestion =
+    text.includes("?") &&
+    (text.includes("artikel") ||
+      text.includes("maat") ||
+      text.includes("kleur") ||
+      text.includes("formaat") ||
+      text.includes("kun je") ||
+      text.includes("kunt u") ||
+      text.includes("wil je"));
 
   if (isFallback) return false;
   if (hasProducts) return true;
@@ -220,7 +238,12 @@ function inferType({ user_message, ai_output, products }) {
   if (Array.isArray(products) && products.length > 0) return "product";
 
   const text = `${user_message || ""}\n${ai_output || ""}`.toLowerCase();
-  if (text.includes("retour") || text.includes("verzending") || text.includes("garantie") || text.includes("annule")) return "policy";
+  if (
+    text.includes("retour") ||
+    text.includes("verzending") ||
+    text.includes("garantie") ||
+    text.includes("annule")
+  ) return "policy";
   if (text.length < 3) return "unknown";
   return "general";
 }

@@ -34,10 +34,7 @@ export function setKPI(id, value) {
 }
 
 /**
- * Conversation list:
- * - Vraag (user) BOVEN
- * - Meta (tijd • site/kanaal • type/topic) ONDER
- * - Badge rechts in de meta-row
+ * Conversation list (links)
  */
 export function renderConversationList(conversations, activeId, onSelect) {
   const root = document.getElementById("convoList");
@@ -54,22 +51,18 @@ export function renderConversationList(conversations, activeId, onSelect) {
     const id = stableConvoId(c);
     const isActive = !!activeId && !!id && id === activeId;
 
-    // Gebruik button voor toegankelijkheid, maar style komt uit CSS (.list-item)
     const item = document.createElement("button");
     item.type = "button";
     item.className = `list-item${isActive ? " active" : ""}`;
 
     const question =
-      (c.messages?.find(m => m.role === "user")?.content) ||
-      c.user_message ||
+      (c.messages?.find((m) => m.role === "user")?.content) ||
       "(geen vraag)";
 
-    // Meta: tijd • workspace/site • type/topic (of channel als je dat gebruikt)
     const when = fmtDateTime(c.updated_at || c.created_at);
-    const site = c.workspace_id || c.site || c.channel || "—";
+    const site = c.workspace_id || c.channel || "—";
     const typeTopic = formatTypeTopic(c);
 
-    // Bouw: vraag eerst, meta onderaan met badge rechts
     const qDiv = document.createElement("div");
     qDiv.className = "list-q";
     qDiv.textContent = truncate(question, 110);
@@ -78,7 +71,7 @@ export function renderConversationList(conversations, activeId, onSelect) {
     top.className = "list-top";
     top.innerHTML = `
       <span>${escapeHTML(`${when} • ${site} • ${typeTopic}`)}</span>
-      <span class="badge ${badgeClass(c)}">${escapeHTML(badgeText(c))}</span>
+      ${badgeHTMLFromOutcome(c)}
     `;
 
     item.appendChild(qDiv);
@@ -89,6 +82,11 @@ export function renderConversationList(conversations, activeId, onSelect) {
   }
 }
 
+/**
+ * Conversation detail (rechts)
+ * 🔥 FIX: messages DESC (nieuw->oud)
+ * 🔥 FIX: cost/tokens bovenaan in header
+ */
 export function renderConversationDetail(convo) {
   const root = document.getElementById("convoDetail");
   if (!root) return;
@@ -99,6 +97,20 @@ export function renderConversationDetail(convo) {
   }
 
   const id = stableConvoId(convo) || "—";
+  const updated = fmtDateTime(convo.updated_at || convo.created_at);
+
+  const tokens = Number(convo.metrics?.tokens ?? 0);
+  const cost = Number(convo.metrics?.total_cost ?? 0);
+  const turns = Number(convo._turns ?? 0);
+
+  // latency: als je sum gebruikt is dit geen p95, maar beter dan niets
+  const latencySum = Number(convo.metrics?.latency_ms ?? 0);
+  const latencyAvg = turns ? Math.round(latencySum / turns) : 0;
+
+  // 🔥 messages newest-first
+  const msgs = [...(convo.messages || [])].sort((a, b) =>
+    String(b.at || "").localeCompare(String(a.at || ""))
+  );
 
   root.innerHTML = `
     <div class="detail-head">
@@ -108,7 +120,7 @@ export function renderConversationDetail(convo) {
           ${escapeHTML(convo.workspace_id || convo.channel || "—")} •
           ${escapeHTML(convo.type || "—")} •
           ${escapeHTML(convo.topic || "—")} •
-          Updated: ${escapeHTML(fmtDateTime(convo.updated_at || convo.created_at))}
+          Updated: ${escapeHTML(updated)}
         </div>
       </div>
 
@@ -116,44 +128,41 @@ export function renderConversationDetail(convo) {
         ${badge(convo.outcome?.success ? "Success" : "Not success", convo.outcome?.success ? "ok" : "bad")}
         ${badge(convo.outcome?.escalated ? "Escalated" : "—", convo.outcome?.escalated ? "warn" : "muted")}
         ${badge(convo.outcome?.lead ? "Lead" : "—", convo.outcome?.lead ? "ok" : "muted")}
+        ${badge(`Turns: ${fmtNum(turns)}`, "muted")}
+        ${badge(`Tokens: ${fmtNum(tokens)}`, "muted")}
+        ${badge(`Cost: $${fmtMoney(cost)}`, "muted")}
+        ${badge(`Avg latency: ${fmtNum(latencyAvg)}ms`, "muted")}
       </div>
     </div>
 
     <div class="detail-messages">
-      ${(convo.messages || []).map(renderMsg).join("")}
-    </div>
-
-    <div class="detail-foot">
-      <div class="detail-metric">Tokens: <strong>${fmtNum(convo.metrics?.tokens)}</strong></div>
-      <div class="detail-metric">Cost (USD): <strong>${fmtMoney(convo.metrics?.total_cost)}</strong></div>
+      ${msgs.map(renderMsg).join("")}
     </div>
   `;
 }
 
 /**
- * failedTable HTML heeft kolommen:
+ * TURN-LEVEL tables
  * Datum | Kanaal | Type | Vraag | Reason
  */
-export function renderFailedTable(rows) {
+export function renderFailedTable(turns) {
   const tbl = document.getElementById("failedTable");
   if (!tbl) return;
-
   const body = tbl.querySelector("tbody");
   if (!body) return;
 
   body.innerHTML = "";
+  const top = (turns || []).slice(0, 12);
 
-  const top = (rows || []).slice(0, 12);
-
-  for (const c of top) {
-    const q = c.messages?.find(m => m.role === "user")?.content || c.user_message || "";
-    const reason = c.reason || c.outcome?.reason || "—";
+  for (const t of top) {
+    const q = t.user_message || "";
+    const reason = t.reason || t.outcome?.reason || "—";
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${escapeHTML(fmtDateTime(c.updated_at || c.created_at))}</td>
-      <td>${escapeHTML(c.channel || c.workspace_id || "—")}</td>
-      <td>${escapeHTML(c.type || "—")}</td>
+      <td>${escapeHTML(fmtDateTime(t.created_at || t.updated_at))}</td>
+      <td>${escapeHTML(t.channel || t.workspace_id || "—")}</td>
+      <td>${escapeHTML(t.type || "—")}</td>
       <td title="${escapeHTML(q)}">${escapeHTML(truncate(q, 80))}</td>
       <td>${escapeHTML(reason)}</td>
     `;
@@ -162,35 +171,32 @@ export function renderFailedTable(rows) {
 
   if (!top.length) {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="5" class="muted">Geen failed conversaties.</td>`;
+    tr.innerHTML = `<td colspan="5" class="muted">Geen failed chats.</td>`;
     body.appendChild(tr);
   }
 }
 
 /**
- * escalationTable HTML heeft kolommen:
  * Datum | Kanaal | Vraag | Actie | Lead
  */
-export function renderEscalationTable(rows) {
+export function renderEscalationTable(turns) {
   const tbl = document.getElementById("escalationTable");
   if (!tbl) return;
-
   const body = tbl.querySelector("tbody");
   if (!body) return;
 
   body.innerHTML = "";
+  const top = (turns || []).slice(0, 12);
 
-  const top = (rows || []).slice(0, 12);
-
-  for (const c of top) {
-    const q = c.messages?.find(m => m.role === "user")?.content || c.user_message || "";
-    const action = "Follow-up"; // placeholder
-    const lead = c.outcome?.lead ? "Yes" : "No";
+  for (const t of top) {
+    const q = t.user_message || "";
+    const action = "Follow-up";
+    const lead = (t.lead ?? t.outcome?.lead) ? "Yes" : "No";
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${escapeHTML(fmtDateTime(c.updated_at || c.created_at))}</td>
-      <td>${escapeHTML(c.channel || c.workspace_id || "—")}</td>
+      <td>${escapeHTML(fmtDateTime(t.created_at || t.updated_at))}</td>
+      <td>${escapeHTML(t.channel || t.workspace_id || "—")}</td>
       <td title="${escapeHTML(q)}">${escapeHTML(truncate(q, 80))}</td>
       <td>${escapeHTML(action)}</td>
       <td>${escapeHTML(lead)}</td>
@@ -205,12 +211,10 @@ export function renderEscalationTable(rows) {
   }
 }
 
-/* ---------- internal helpers ---------- */
+/* ---------- helpers ---------- */
 
 function stableConvoId(c) {
-  // voorkeur: conversation_id; fallback: event_id
-  const v = c?.conversation_id || c?.event_id || "";
-  return String(v || "");
+  return String(c?.conversation_id || c?.event_id || "");
 }
 
 function formatTypeTopic(c) {
@@ -219,25 +223,21 @@ function formatTypeTopic(c) {
   return `${t}${topic}`;
 }
 
-function badgeText(c) {
+function badgeHTMLFromOutcome(c) {
   const o = c?.outcome || {};
-  if (o.escalated) return "Support";
-  if (o.success) return "Success";
-  if (o.reason) return "Failed";
-  return "—";
-}
-
-function badgeClass(c) {
-  const o = c?.outcome || {};
-  if (o.escalated) return "warn";
-  if (o.success) return "ok";
-  if (o.reason) return "bad";
-  return "";
+  if (o.escalated) return badge("Support", "warn");
+  if (o.success) return badge("Success", "ok");
+  if (o.reason) return badge("Failed", "bad");
+  return badge("—", "muted");
 }
 
 function renderMsg(m) {
   const role = m?.role || "unknown";
-  const cls = role === "user" ? "msg user" : role === "assistant" ? "msg bot" : "msg system";
+  const cls =
+    role === "user" ? "msg user" :
+    role === "assistant" ? "msg bot" :
+    "msg system";
+
   const at = m?.at ? fmtDateTime(m.at) : "—";
   const content = m?.content || "";
 
@@ -259,8 +259,7 @@ function badge(text, kind) {
 function fmtDateTime(iso) {
   if (!iso) return "—";
   try {
-    const d = new Date(iso);
-    return d.toLocaleString();
+    return new Date(iso).toLocaleString();
   } catch {
     return String(iso);
   }
