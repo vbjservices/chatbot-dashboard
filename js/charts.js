@@ -25,10 +25,16 @@ export function upsertChart(canvasId, config) {
   charts.set(canvasId, chart);
 }
 
-export function renderCharts({ conversations = [] } = {}) {
-  // Vandaag success rate (eenvoudig: in filtered set)
-  const total = conversations.length || 0;
-  const success = conversations.filter(c => !!c.outcome?.success).length;
+/**
+ * renderCharts:
+ * Gebruik bij voorkeur turns (rows). Conversations mag nog, maar turns is waarheid.
+ */
+export function renderCharts({ turns = [], conversations = [] } = {}) {
+  const items = (turns && turns.length) ? turns : conversations;
+
+  // Vandaag success rate (op items)
+  const total = items.length || 0;
+  const success = items.filter(x => !!(x.success ?? x.outcome?.success)).length;
   const rate = total ? Math.round((success / total) * 100) : 0;
 
   upsertChart("chartTodaySuccess", {
@@ -41,18 +47,18 @@ export function renderCharts({ conversations = [] } = {}) {
   });
 
   // Volume per dag
-  const byDay = bucketByDay(conversations);
+  const byDay = bucketByDay(items);
   upsertChart("chartConvos", {
     type: "line",
     data: {
       labels: byDay.labels,
-      datasets: [{ label: "Conversations", data: byDay.counts }],
+      datasets: [{ label: "Chats", data: byDay.counts }],
     },
     options: { plugins: { legend: { display: false } } },
   });
 
   // Topics
-  const topics = countBy(conversations, c => c.topic || "Overig");
+  const topics = countBy(items, x => x.topic || "Overig");
   upsertChart("chartTopics", {
     type: "bar",
     data: {
@@ -64,11 +70,11 @@ export function renderCharts({ conversations = [] } = {}) {
 
   // Outcomes (success/escalated/lead)
   const outcomes = {
-    success: conversations.filter(c => !!c.outcome?.success).length,
-    escalated: conversations.filter(c => !!c.outcome?.escalated).length,
-    lead: conversations.filter(c => !!c.outcome?.lead).length,
-    other: Math.max(0, total - conversations.filter(c => !!c.outcome?.success || !!c.outcome?.escalated || !!c.outcome?.lead).length),
+    success: items.filter(x => !!(x.success ?? x.outcome?.success)).length,
+    escalated: items.filter(x => !!(x.escalated ?? x.outcome?.escalated)).length,
+    lead: items.filter(x => !!(x.lead ?? x.outcome?.lead)).length,
   };
+  outcomes.other = Math.max(0, total - (outcomes.success + outcomes.escalated + outcomes.lead));
 
   upsertChart("chartOutcomes", {
     type: "bar",
@@ -79,48 +85,69 @@ export function renderCharts({ conversations = [] } = {}) {
     options: { plugins: { legend: { display: false } } },
   });
 
-  // “Latency” canvas hergebruiken als Tokens-per-conversation
-  const tokensByDay = bucketByDay(conversations, c => Number(c.metrics?.tokens ?? 0));
+  // Latency p95 per dag (ms) — gebruikt NULL bij gebrek aan data (geen fake zeros)
+  const p95ByDay = bucketP95ByDay(items, x => x?.metrics?.latency_ms);
   upsertChart("chartLatency", {
     type: "line",
     data: {
-      labels: tokensByDay.labels,
-      datasets: [{ label: "Tokens", data: tokensByDay.sums }],
+      labels: p95ByDay.labels,
+      datasets: [{ label: "Latency p95 (ms)", data: p95ByDay.p95s }],
     },
-    options: { plugins: { legend: { display: false } } },
+    options: {
+      plugins: { legend: { display: false } },
+      spanGaps: true,
+    },
   });
 }
 
 /* ---------- helpers ---------- */
 
-function bucketByDay(conversations, valueFn = null) {
+function bucketByDay(items) {
   const map = new Map();
 
-  for (const c of conversations) {
-    const iso = c.updated_at || c.created_at;
+  for (const x of items) {
+    const iso = x.updated_at || x.created_at;
     if (!iso) continue;
 
     const d = new Date(iso);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-    if (!map.has(key)) map.set(key, { count: 0, sum: 0 });
-    const cur = map.get(key);
-    cur.count += 1;
-
-    if (valueFn) {
-      const v = Number(valueFn(c));
-      cur.sum += Number.isFinite(v) ? v : 0;
-    }
+    if (!map.has(key)) map.set(key, { count: 0 });
+    map.get(key).count += 1;
   }
 
   const labels = Array.from(map.keys()).sort();
-  const counts = labels.map(k => map.get(k).count);
+  return { labels, counts: labels.map(k => map.get(k).count) };
+}
 
-  return {
-    labels,
-    counts,
-    sums: labels.map(k => map.get(k).sum),
-  };
+function bucketP95ByDay(items, valueFn) {
+  const map = new Map();
+
+  for (const x of items) {
+    const iso = x.updated_at || x.created_at;
+    if (!iso) continue;
+
+    const d = new Date(iso);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+    const v = Number(valueFn(x));
+    if (!Number.isFinite(v)) continue;
+
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(v);
+  }
+
+  const labels = Array.from(map.keys()).sort();
+  const p95s = labels.map(k => percentile(map.get(k), 95));
+  return { labels, p95s };
+}
+
+function percentile(values, p) {
+  if (!values || !values.length) return null;
+  const v = [...values].sort((a, b) => a - b);
+  const idx = Math.ceil((p / 100) * v.length) - 1;
+  const safe = Math.max(0, Math.min(v.length - 1, idx));
+  return v[safe];
 }
 
 function countBy(items, keyFn) {

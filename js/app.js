@@ -20,11 +20,12 @@ const state = {
   rows: [],
   turns: [],
   conversations: [],
-  filtered: [],
+
+  filteredTurns: [],
+  filteredConvos: [],
   selectedId: null,
 
   filters: {
-    // IMPORTANT: match HTML values ("7","14","30") OR accept "7d" etc.
     range: "30",
     channel: "all",
     type: "all",
@@ -54,7 +55,6 @@ async function loadData({ preferNetwork = true } = {}) {
 
   const sinceISO = rangeToSinceISO(state.filters.range);
 
-  // 1) Probeer Supabase (netwerk)
   if (preferNetwork) {
     try {
       const rows = await fetchSupabaseRows({ sinceISO });
@@ -65,14 +65,9 @@ async function loadData({ preferNetwork = true } = {}) {
       state.lastLoadedAt = new Date().toISOString();
       state.source = "Supabase";
 
-      // Cache: bewaar genormaliseerde turns (kleiner dan raw rows) + meta
       writeCache(
         { turns: state.turns },
-        buildCacheMeta({
-          source: "Supabase",
-          rowCount: state.rows.length,
-          sinceISO,
-        })
+        buildCacheMeta({ source: "Supabase", rowCount: state.rows.length, sinceISO })
       );
 
       setStatusPill("Online");
@@ -83,11 +78,10 @@ async function loadData({ preferNetwork = true } = {}) {
       return;
     } catch (e) {
       console.warn("Supabase fetch failed:", e);
-      // val terug op cache
+      // fallback
     }
   }
 
-  // 2) Cache fallback
   const cached = readCache();
   if (cached?.data?.turns?.length) {
     state.rows = [];
@@ -105,11 +99,12 @@ async function loadData({ preferNetwork = true } = {}) {
     return;
   }
 
-  // 3) Geen data beschikbaar → offline + leeg
+  // no data
   state.rows = [];
   state.turns = [];
   state.conversations = [];
-  state.filtered = [];
+  state.filteredTurns = [];
+  state.filteredConvos = [];
   state.selectedId = null;
 
   setStatusPill("Offline");
@@ -125,77 +120,75 @@ function applyFiltersAndRender({ keepSelection = true } = {}) {
   const f = state.filters;
   const rangeSince = rangeToSinceISO(f.range);
 
-  state.filtered = state.conversations
-    .filter((c) => {
+  // 1) FILTER TURNS (waarheid voor KPIs/charts/tables)
+  state.filteredTurns = state.turns
+    .filter((t) => {
       if (!rangeSince) return true;
-      const t = c.updated_at || c.created_at;
-      return !t || t >= rangeSince; // ISO string compare OK
+      const iso = t.created_at || t.updated_at;
+      return !iso || iso >= rangeSince;
     })
-    .filter((c) => f.channel === "all" || c.channel === f.channel)
-    .filter((c) => f.type === "all" || c.type === f.type)
-    .filter((c) => {
+    .filter((t) => f.channel === "all" || (t.channel || t.workspace_id) === f.channel)
+    .filter((t) => f.type === "all" || (t.type || "unknown") === f.type)
+    .filter((t) => {
       if (!f.search) return true;
       const s = f.search.toLowerCase();
-      const blob = (c.messages || []).map((m) => m.content).join("\n").toLowerCase();
-      return blob.includes(s) || String(c.conversation_id || "").toLowerCase().includes(s);
+      const blob = `${t.user_message || ""}\n${t.ai_output || ""}`.toLowerCase();
+      return blob.includes(s) || String(t.conversation_id || "").toLowerCase().includes(s);
     });
 
-  // KEEP selection only if it still exists in filtered set
+  // 2) FILTER CONVERSATIONS (voor viewer) op basis van turns die overblijven
+  const allowedConvoIds = new Set(state.filteredTurns.map(t => t.conversation_id));
+  state.filteredConvos = state.conversations.filter(c => allowedConvoIds.has(c.conversation_id));
+
+  // selection handling (viewer)
   if (keepSelection && state.selectedId) {
-    const stillThere = state.filtered.some((c) => c.conversation_id === state.selectedId);
+    const stillThere = state.filteredConvos.some(c => c.conversation_id === state.selectedId);
     if (!stillThere) state.selectedId = null;
   } else if (!keepSelection) {
     state.selectedId = null;
   }
 
-  // KPIs (based on filtered)
-  const total = state.filtered.length;
-  const success = state.filtered.filter((c) => !!c.outcome?.success).length;
-  const escal = state.filtered.filter((c) => !!c.outcome?.escalated).length;
-  const leads = state.filtered.filter((c) => !!c.outcome?.lead).length;
+  // KPIs — OP TURN LEVEL (niet liegen)
+  const totalChats = state.filteredTurns.length;
+  const successChats = state.filteredTurns.filter(t => !!(t.success ?? t.outcome?.success)).length;
+  const escalChats = state.filteredTurns.filter(t => !!(t.escalated ?? t.outcome?.escalated)).length;
+  const leadChats = state.filteredTurns.filter(t => !!(t.lead ?? t.outcome?.lead)).length;
 
-  const cost = state.filtered.reduce((a, c) => a + Number(c.metrics?.total_cost ?? 0), 0);
+  const cost = state.filteredTurns.reduce((a, t) => a + Number(t.metrics?.total_cost ?? 0), 0);
 
-  // LowConf KPI bestaat in UI; we hebben geen confidence-score → zet op 0
-  const lowConf = 0;
-
-  setKPI("kpiSuccess", total ? `${Math.round((success / total) * 100)}%` : "0%");
-  setKPI("kpiEscalation", total ? `${Math.round((escal / total) * 100)}%` : "0%");
-  setKPI("kpiConvos", String(total));
-  setKPI("kpiLeads", String(leads));
-  setKPI("kpiLowConf", String(lowConf));
+  setKPI("kpiSuccess", totalChats ? `${Math.round((successChats / totalChats) * 100)}%` : "0%");
+  setKPI("kpiEscalation", totalChats ? `${Math.round((escalChats / totalChats) * 100)}%` : "0%");
+  setKPI("kpiConvos", String(state.filteredTurns.length)); // aantal chats/rows in periode
+  setKPI("kpiLeads", String(leadChats));
+  setKPI("kpiLowConf", "0"); // nog niet beschikbaar
   setKPI("kpiCost", `$${cost.toFixed(6)}`);
 
-  // Filters dropdown opties (channel/type)
   repopulateFilters();
 
-  // List + detail
+  // viewer list + detail
   const onSelect = (id) => {
     state.selectedId = id || null;
+    renderConversationList(state.filteredConvos, state.selectedId, onSelect);
 
-    // rerender list to update active state (paars)
-    renderConversationList(state.filtered, state.selectedId, onSelect);
-
-    // detail
-    const convo = state.filtered.find((c) => c.conversation_id === state.selectedId);
+    const convo = state.filteredConvos.find((c) => c.conversation_id === state.selectedId);
     renderConversationDetail(convo || null);
   };
 
-  renderConversationList(state.filtered, state.selectedId, onSelect);
+  renderConversationList(state.filteredConvos, state.selectedId, onSelect);
 
-  const selected = state.filtered.find((c) => c.conversation_id === state.selectedId);
+  const selected = state.filteredConvos.find((c) => c.conversation_id === state.selectedId);
   renderConversationDetail(selected || null);
 
-  // Tables
-  const failed = state.filtered.filter((c) => !c.outcome?.success);
-  const escalRows = state.filtered.filter((c) => !!c.outcome?.escalated);
+  // Tables — OP TURN LEVEL (anders mis je failures)
+  const failedTurns = state.filteredTurns.filter(t => !(t.success ?? t.outcome?.success));
+  const escalTurns = state.filteredTurns.filter(t => !!(t.escalated ?? t.outcome?.escalated));
 
-  renderFailedTable(failed);
-  renderEscalationTable(escalRows);
+  renderFailedTable(failedTurns);
+  renderEscalationTable(escalTurns);
 
-  // Charts
+  // Charts — OP TURN LEVEL
   destroyCharts();
-  renderCharts({ conversations: state.filtered });
+  renderCharts({ turns: state.filteredTurns });
 }
 
 /* ---------------- UI wiring ---------------- */
@@ -208,13 +201,11 @@ function wireUI() {
   const refreshBtn = document.getElementById("refreshBtn");
   const exportBtn = document.getElementById("exportBtn");
 
-  // Ensure state matches current UI value
   if (rangeSelect) state.filters.range = rangeSelect.value;
 
   if (rangeSelect) {
     rangeSelect.addEventListener("change", () => {
       state.filters.range = rangeSelect.value;
-      // reload from network for new range (liefst)
       loadData({ preferNetwork: true });
     });
   }
@@ -222,7 +213,6 @@ function wireUI() {
   if (channelSelect) {
     channelSelect.addEventListener("change", () => {
       state.filters.channel = channelSelect.value;
-      // Geen auto-select bij filters: keepSelection = true (als hij nog bestaat)
       applyFiltersAndRender({ keepSelection: true });
     });
   }
@@ -241,13 +231,8 @@ function wireUI() {
     });
   }
 
-  if (refreshBtn) {
-    refreshBtn.addEventListener("click", () => loadData({ preferNetwork: true }));
-  }
-
-  if (exportBtn) {
-    exportBtn.addEventListener("click", exportCSV);
-  }
+  if (refreshBtn) refreshBtn.addEventListener("click", () => loadData({ preferNetwork: true }));
+  if (exportBtn) exportBtn.addEventListener("click", exportCSV);
 }
 
 function repopulateFilters() {
@@ -255,13 +240,13 @@ function repopulateFilters() {
   const typeSelect = document.getElementById("typeSelect");
 
   if (channelSelect) {
-    const channels = uniq(state.conversations.map((c) => c.channel || "unknown")).sort();
-    fillSelect(channelSelect, ["all", ...channels], state.filters.channel, "All channels");
+    const channels = uniq(state.turns.map(t => (t.channel || t.workspace_id || "unknown"))).sort();
+    fillSelect(channelSelect, ["all", ...channels], state.filters.channel, "Alle kanalen");
   }
 
   if (typeSelect) {
-    const types = uniq(state.conversations.map((c) => c.type || "chat")).sort();
-    fillSelect(typeSelect, ["all", ...types], state.filters.type, "All types");
+    const types = uniq(state.turns.map(t => (t.type || "unknown"))).sort();
+    fillSelect(typeSelect, ["all", ...types], state.filters.type, "Alle types");
   }
 }
 
@@ -276,7 +261,6 @@ function fillSelect(selectEl, values, selected, allLabel) {
     selectEl.appendChild(opt);
   }
 
-  // preserve if possible
   const want = selected || current || "all";
   selectEl.value = values.includes(want) ? want : "all";
 }
@@ -284,24 +268,22 @@ function fillSelect(selectEl, values, selected, allLabel) {
 /* ---------------- CSV export ---------------- */
 
 function exportCSV() {
-  const rows = state.filtered.map((c) => {
-    const firstUser = c.messages?.find((m) => m.role === "user")?.content || "";
-    const lastAssist = [...(c.messages || [])].reverse().find((m) => m.role === "assistant")?.content || "";
-    return {
-      conversation_id: c.conversation_id,
-      channel: c.channel,
-      type: c.type,
-      topic: c.topic,
-      updated_at: c.updated_at,
-      success: !!c.outcome?.success,
-      escalated: !!c.outcome?.escalated,
-      lead: !!c.outcome?.lead,
-      tokens: Number(c.metrics?.tokens ?? 0),
-      total_cost_usd: Number(c.metrics?.total_cost ?? 0),
-      user_message: firstUser,
-      ai_output: lastAssist,
-    };
-  });
+  const rows = state.filteredTurns.map((t) => ({
+    conversation_id: t.conversation_id,
+    created_at: t.created_at,
+    channel: t.channel,
+    type: t.type,
+    topic: t.topic,
+    success: !!(t.success ?? t.outcome?.success),
+    escalated: !!(t.escalated ?? t.outcome?.escalated),
+    lead: !!(t.lead ?? t.outcome?.lead),
+    reason: t.reason || t.outcome?.reason || "",
+    latency_ms: t.metrics?.latency_ms ?? "",
+    tokens: t.metrics?.tokens ?? "",
+    total_cost_usd: t.metrics?.total_cost ?? "",
+    user_message: t.user_message || "",
+    ai_output: t.ai_output || "",
+  }));
 
   const csv = toCSV(rows);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -325,19 +307,17 @@ function rangeToSinceISO(range) {
   const now = Date.now();
   const day = 24 * 60 * 60 * 1000;
 
-  // Accept HTML values: "7" "14" "30"
   if (range === "7") return new Date(now - 7 * day).toISOString();
   if (range === "14") return new Date(now - 14 * day).toISOString();
   if (range === "30") return new Date(now - 30 * day).toISOString();
 
-  // Accept older style values too
-  if (range === "24h") return new Date(now - 1 * day).toISOString();
+  // fallback (oude waarden)
   if (range === "7d") return new Date(now - 7 * day).toISOString();
   if (range === "14d") return new Date(now - 14 * day).toISOString();
   if (range === "30d") return new Date(now - 30 * day).toISOString();
   if (range === "90d") return new Date(now - 90 * day).toISOString();
 
-  return null; // "all"
+  return null;
 }
 
 function uniq(arr) {
