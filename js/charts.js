@@ -149,7 +149,7 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
   // Volume per dag (Conversations per dag)
   const byDay = bucketByDay(items);
 
-  // ✅ AANGEPAST: van line -> bar + altijd beginnen op 0
+  // AANGEPAST: van line -> bar + altijd beginnen op 0
   upsertChart("chartConvos", {
     type: "bar",
     plugins: basePlugins,
@@ -239,25 +239,36 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
   const latencyData = latencyMode === "avg" ? series.avgs : series.p95s;
 
   upsertChart("chartLatency", {
-    type: "line",
-    plugins: basePlugins,
-    data: {
-      labels: series.labels,
-      datasets: [{
-        label: latencyLabel,
-        data: latencyData,
-        borderWidth: 2,
-        tension: 0.35,
-        pointRadius: 2.5,
-        pointHoverRadius: 5,
-        spanGaps: true,
-        fill: true,
-        borderColor: (ctx) => verticalLineGradient(ctx.chart.ctx, theme.warn, theme.warnGlow),
-        backgroundColor: (ctx) => areaFillGradient(ctx.chart.ctx, theme.warn),
-      }],
-    },
-    options: lineOptsWithLatencySeconds(theme, { yTitle: "s", spanGaps: true }),
-  });
+  type: "line",
+  plugins: basePlugins,
+  data: {
+    labels: series.labels,
+    datasets: [{
+      label: latencyLabel,
+      data: latencyData,
+      borderWidth: 2,
+      tension: 0.35,
+      pointRadius: 2.5,
+      pointHoverRadius: 5,
+
+      // dots (paars)
+      pointBackgroundColor: "rgba(127, 0, 152, 1)",
+      pointBorderColor: "rgba(225, 0, 255, 0.49)",
+      pointBorderWidth: 2,
+      pointHoverBackgroundColor: "rgba(225, 0, 255, 1)",
+      pointHoverBorderColor: "rgba(0,0,0,.55)",
+
+      spanGaps: true,
+      fill: true,
+
+      // ✅ lijn + area fill: PAARS gradient via theme.accent
+      borderColor: (ctx) => verticalLineGradient(ctx.chart.ctx, theme.accent, theme.accentGlow),
+      backgroundColor: (ctx) => areaFillGradient(ctx.chart.ctx, theme.accent),
+    }],
+  },
+  options: lineOptsWithLatencySeconds(theme, { yTitle: "s", spanGaps: true }),
+});
+
 }
 
 /* ---------- Chart options (consistent + pro) ---------- */
