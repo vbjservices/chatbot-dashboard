@@ -146,26 +146,26 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
     },
   });
 
-  // Volume per dag
+  // Volume per dag (Conversations per dag)
   const byDay = bucketByDay(items);
+
+  // ✅ AANGEPAST: van line -> bar + altijd beginnen op 0
   upsertChart("chartConvos", {
-    type: "line",
+    type: "bar",
     plugins: basePlugins,
     data: {
       labels: byDay.labels,
       datasets: [{
         label: "Chats",
         data: byDay.counts,
-        borderWidth: 2,
-        tension: 0.35,
-        pointRadius: 2.5,
-        pointHoverRadius: 5,
-        fill: true,
-        borderColor: (ctx) => verticalLineGradient(ctx.chart.ctx, theme.accent, theme.accentGlow),
-        backgroundColor: (ctx) => areaFillGradient(ctx.chart.ctx, theme.accent),
+        borderRadius: 10,
+        borderSkipped: false,
+        backgroundColor: (ctx) => verticalBarGradient(ctx.chart.ctx, theme.accent, theme.accentGlow),
+        borderColor: "rgba(255,255,255,.16)",
+        borderWidth: 1,
       }],
     },
-    options: lineOpts(theme, { yTitle: "Chats" }),
+    options: barOpts(theme, { yTitle: "Chats", beginAtZero: true }),
   });
 
   // Topics
@@ -263,7 +263,7 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
 /* ---------- Chart options (consistent + pro) ---------- */
 
 function tooltipOpts(theme) {
-  // ✅ Dit is weer je originele tooltip (geen latency formatting meer!)
+  // originele tooltip (geen latency formatting)
   return {
     backgroundColor: "rgba(10,14,28,.92)",
     borderColor: "rgba(255,255,255,.14)",
@@ -279,7 +279,7 @@ function tooltipOpts(theme) {
   };
 }
 
-function baseScale(theme, { yTitle = "" } = {}) {
+function baseScale(theme, { yTitle = "", beginAtZero = false } = {}) {
   return {
     x: {
       ticks: { color: theme.muted, maxRotation: 0, autoSkip: true },
@@ -287,7 +287,8 @@ function baseScale(theme, { yTitle = "" } = {}) {
       border: { color: theme.gridBorder },
     },
     y: {
-      ticks: { color: theme.muted },
+      min: beginAtZero ? 0 : undefined,
+      ticks: { color: theme.muted, beginAtZero },
       grid: { color: theme.grid },
       border: { color: theme.gridBorder },
       title: yTitle ? { display: true, text: yTitle, color: theme.muted, font: { weight: "600" } } : undefined,
@@ -309,7 +310,7 @@ function lineOpts(theme, { yTitle = "", spanGaps = false } = {}) {
   };
 }
 
-// ✅ alleen voor latency chart: seconden + decimalen in tooltip en y-as
+// alleen voor latency chart: seconden + decimalen in tooltip en y-as
 function lineOptsWithLatencySeconds(theme, { yTitle = "s", spanGaps = false } = {}) {
   const opts = lineOpts(theme, { yTitle, spanGaps });
 
@@ -323,7 +324,6 @@ function lineOptsWithLatencySeconds(theme, { yTitle = "s", spanGaps = false } = 
         const v = ctx.raw;
         if (v == null || !Number.isFinite(Number(v))) return `${label}—`;
         const n = Number(v);
-        // netjes: <10s => 3 decimals, anders 2
         const s = n < 10 ? n.toFixed(3) : n.toFixed(2);
         return `${label}${s}s`;
       },
@@ -349,7 +349,7 @@ function lineOptsWithLatencySeconds(theme, { yTitle = "s", spanGaps = false } = 
   return opts;
 }
 
-function barOpts(theme, { yTitle = "" } = {}) {
+function barOpts(theme, { yTitle = "", beginAtZero = false } = {}) {
   return {
     responsive: true,
     maintainAspectRatio: false,
@@ -357,7 +357,7 @@ function barOpts(theme, { yTitle = "" } = {}) {
       legend: { display: false },
       tooltip: tooltipOpts(theme),
     },
-    scales: baseScale(theme, { yTitle }),
+    scales: baseScale(theme, { yTitle, beginAtZero }),
   };
 }
 
@@ -392,10 +392,10 @@ function radialSliceGradient(ctx, chartArea, base, glow, rimFade) {
   );
 
   const g = ctx.createRadialGradient(cx, cy, r * 0.12, cx, cy, r);
-  g.addColorStop(0.00, glow);                 // inner highlight
-  g.addColorStop(0.55, base);                 // body
-  g.addColorStop(0.88, withAlpha(base, 0.96));// keep color near rim (prevents “washout”)
-  g.addColorStop(1.00, rimFade);              // outer rim fade (NOW subtle)
+  g.addColorStop(0.00, glow);
+  g.addColorStop(0.55, base);
+  g.addColorStop(0.88, withAlpha(base, 0.96));
+  g.addColorStop(1.00, rimFade);
   return g;
 }
 
@@ -447,14 +447,11 @@ function getTheme() {
   const ok = root.getPropertyValue("--ok").trim() || "#22c55e";
   const warn = root.getPropertyValue("--warn").trim() || "#f59e0b";
 
-  // Failed basis (jij gebruikt rood)
   const fail = "#ef4444";
 
-  // Groen: iets lichter, maar niet neon
   const okBase = lightenHex(ok, 0.10);
   const okGlow = withAlpha(okBase, 0.82);
 
-  // Rood: iets dieper maar cleaner
   const failBase = deepenHex(fail, 0.06);
   const failGlow = withAlpha(lightenHex(failBase, 0.06), 0.80);
 
@@ -568,7 +565,7 @@ function bucketP95ByDaySeconds(items, valueFnMs) {
 }
 
 function bucketAvgByDaySeconds(items, valueFnMs) {
-  const map = new Map(); // key -> { sum, n }
+  const map = new Map();
 
   for (const x of items) {
     const iso = x.updated_at || x.created_at;
