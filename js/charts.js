@@ -1,5 +1,5 @@
 // charts.js
-// Vereist Chart.js global (zoals je index.html al doet)
+// Requires Chart.js global (as loaded in index.html)
 
 const charts = new Map();
 
@@ -29,23 +29,23 @@ export function upsertChart(canvasId, config) {
 
 /**
  * renderCharts:
- * Gebruik bij voorkeur turns (rows). Conversations mag nog, maar turns is waarheid.
+ * Prefer turns (rows). Conversations is supported as fallback.
  */
 export function renderCharts({ turns = [], conversations = [], latencyMode = "p95" } = {}) {
   const items = (turns && turns.length) ? turns : conversations;
 
-  // Theme uit CSS (robust)
+  // Theme from CSS variables
   const theme = getTheme();
 
-  // Defaults (per chart consistent)
+  // Defaults (consistent per chart)
   const basePlugins = [shadowPlugin()];
 
-  // Vandaag success rate (op items)
+  // Today success rate (based on items)
   const total = items.length || 0;
   const success = items.filter(x => !!(x.success ?? x.outcome?.success)).length;
   const rate = total ? Math.round((success / total) * 100) : 0;
 
-  // Labels/volgorde expliciet vastzetten
+  // Donut labels/order pinned
   const donutLabels = ["Success", "Failed"];
   const donutData = [rate, 100 - rate];
 
@@ -57,29 +57,27 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
       datasets: [{
         data: donutData,
 
-        // Per slice 1 kleur returnen (scriptable)
+        // Scriptable colors per slice
         backgroundColor: (context) => {
           const { chart, dataIndex } = context;
           const c = chart.ctx;
           const area = chart.chartArea;
 
-          // chartArea kan bij eerste render nog undefined zijn
+          // chartArea can be undefined on first render
           if (!area) {
             return dataIndex === 0 ? theme.okBase : theme.failBase;
           }
 
-          // Success slice: minder “donkere rand” + iets lichter groen
           if (dataIndex === 0) {
             return radialSliceGradient(
               c,
               area,
-              theme.okBase,     // base
-              theme.okGlow,     // glow
-              theme.rimFade     // rand fade (minder dissolve)
+              theme.okBase,
+              theme.okGlow,
+              theme.rimFade
             );
           }
 
-          // Failed slice: minder dissolve (zelfde rimFade)
           return radialSliceGradient(
             c,
             area,
@@ -99,40 +97,28 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
       responsive: true,
       maintainAspectRatio: false,
       cutout: "72%",
-
-      // Force default text color for *this chart only*
       color: theme.legendText,
-
       plugins: {
         legend: {
           position: "bottom",
           labels: {
-            // Force white (no more black text)
             color: theme.legendText,
-
             padding: 14,
             usePointStyle: true,
             pointStyle: "circle",
-
             generateLabels: (chart) => {
               const labels = chart.data.labels || [];
               return labels.map((label, i) => {
                 const isSuccess = i === 0;
-
                 const fill = isSuccess ? theme.okLegendFill : theme.failLegendFill;
                 const stroke = isSuccess ? theme.okLegendStroke : theme.failLegendStroke;
 
                 return {
                   text: label,
-
-                  // “gradient-like” bullets (fill + edge)
                   fillStyle: fill,
                   strokeStyle: stroke,
                   lineWidth: 2,
-
-                  // THE IMPORTANT PART: force text color per item
                   fontColor: theme.legendText,
-
                   hidden: !chart.getDataVisibility(i),
                   index: i,
                   pointStyle: "circle",
@@ -146,10 +132,9 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
     },
   });
 
-  // Volume per dag (Conversations per dag)
+  // Conversations per day
   const byDay = bucketByDay(items);
 
-  // AANGEPAST: van line -> bar + altijd beginnen op 0
   upsertChart("chartConvos", {
     type: "bar",
     plugins: basePlugins,
@@ -222,12 +207,11 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
     options: barOpts(theme, { yTitle: "Aantal" }),
   });
 
-  // -------------------------------
-  // Latency chart (toggle: p95 / avg) — in seconden met decimalen
-  // - leest latency uit metrics.latency_ms OF latency_ms
-  // - zet ms -> s
-  // - tooltip formatting alleen voor latency chart
-  // -------------------------------
+  /*
+    Latency chart (toggle: p95 / avg) in seconds with decimals.
+    Reads latency from metrics.latency_ms or latency_ms, converts ms -> s.
+    Tooltip formatting is applied only to the latency chart.
+  */
   const latencyMs = (x) => (x?.metrics?.latency_ms ?? x?.latency_ms);
 
   const series =
@@ -239,42 +223,40 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
   const latencyData = latencyMode === "avg" ? series.avgs : series.p95s;
 
   upsertChart("chartLatency", {
-  type: "line",
-  plugins: basePlugins,
-  data: {
-    labels: series.labels,
-    datasets: [{
-      label: latencyLabel,
-      data: latencyData,
-      borderWidth: 2,
-      tension: 0.35,
-      pointRadius: 2.5,
-      pointHoverRadius: 5,
+    type: "line",
+    plugins: basePlugins,
+    data: {
+      labels: series.labels,
+      datasets: [{
+        label: latencyLabel,
+        data: latencyData,
+        borderWidth: 2,
+        tension: 0.35,
+        pointRadius: 2.5,
+        pointHoverRadius: 5,
 
-      // dots (paars)
-      pointBackgroundColor: "rgba(127, 0, 152, 1)",
-      pointBorderColor: "rgba(225, 0, 255, 0.49)",
-      pointBorderWidth: 2,
-      pointHoverBackgroundColor: "rgba(225, 0, 255, 1)",
-      pointHoverBorderColor: "rgba(0,0,0,.55)",
+        // Point styling
+        pointBackgroundColor: "rgba(127, 0, 152, 1)",
+        pointBorderColor: "rgba(225, 0, 255, 0.49)",
+        pointBorderWidth: 2,
+        pointHoverBackgroundColor: "rgba(225, 0, 255, 1)",
+        pointHoverBorderColor: "rgba(0,0,0,.55)",
 
-      spanGaps: true,
-      fill: true,
+        spanGaps: true,
+        fill: true,
 
-      // ✅ lijn + area fill: PAARS gradient via theme.accent
-      borderColor: (ctx) => verticalLineGradient(ctx.chart.ctx, theme.accent, theme.accentGlow),
-      backgroundColor: (ctx) => areaFillGradient(ctx.chart.ctx, theme.accent),
-    }],
-  },
-  options: lineOptsWithLatencySeconds(theme, { yTitle: "s", spanGaps: true }),
-});
-
+        // Purple gradient using theme accent
+        borderColor: (ctx) => verticalLineGradient(ctx.chart.ctx, theme.accent, theme.accentGlow),
+        backgroundColor: (ctx) => areaFillGradient(ctx.chart.ctx, theme.accent),
+      }],
+    },
+    options: lineOptsWithLatencySeconds(theme, { yTitle: "s", spanGaps: true }),
+  });
 }
 
-/* ---------- Chart options (consistent + pro) ---------- */
+/* ---------- Chart options ---------- */
 
 function tooltipOpts(theme) {
-  // originele tooltip (geen latency formatting)
   return {
     backgroundColor: "rgba(10,14,28,.92)",
     borderColor: "rgba(255,255,255,.14)",
@@ -321,15 +303,15 @@ function lineOpts(theme, { yTitle = "", spanGaps = false } = {}) {
   };
 }
 
-// alleen voor latency chart: seconden + decimalen in tooltip en y-as
 function lineOptsWithLatencySeconds(theme, { yTitle = "s", spanGaps = false } = {}) {
   const opts = lineOpts(theme, { yTitle, spanGaps });
 
-  // tooltip: alleen latency
+  // Latency-only tooltip formatting
+  const base = tooltipOpts(theme);
   opts.plugins.tooltip = {
-    ...tooltipOpts(theme),
+    ...base,
     callbacks: {
-      ...tooltipOpts(theme).callbacks,
+      ...base.callbacks,
       label: (ctx) => {
         const label = ctx.dataset?.label ? `${ctx.dataset.label}: ` : "";
         const v = ctx.raw;
@@ -341,7 +323,7 @@ function lineOptsWithLatencySeconds(theme, { yTitle = "s", spanGaps = false } = 
     },
   };
 
-  // y-as ticks: seconden met decimals
+  // Y-axis tick formatting for seconds
   opts.scales = {
     ...opts.scales,
     y: {
@@ -372,7 +354,7 @@ function barOpts(theme, { yTitle = "", beginAtZero = false } = {}) {
   };
 }
 
-/* ---------- 2.5D look helpers ---------- */
+/* ---------- Rendering helpers ---------- */
 
 function shadowPlugin() {
   return {
@@ -532,7 +514,7 @@ function deepenHex(hex, amount = 0.1) {
   return `#${[drop(r), drop(g), drop(b)].map(n => n.toString(16).padStart(2, "0")).join("")}`;
 }
 
-/* ---------- helpers ---------- */
+/* ---------- Data helpers ---------- */
 
 function bucketByDay(items) {
   const map = new Map();
@@ -542,14 +524,15 @@ function bucketByDay(items) {
     if (!iso) continue;
 
     const d = new Date(iso);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const key = toISODateKey(d);
 
     if (!map.has(key)) map.set(key, { count: 0 });
     map.get(key).count += 1;
   }
 
-  const labels = Array.from(map.keys()).sort();
-  return { labels, counts: labels.map(k => map.get(k).count) };
+  const keys = Array.from(map.keys()).sort();
+  const labels = keys.map(fromISODateKeyToDMY);
+  return { labels, counts: keys.map(k => map.get(k).count) };
 }
 
 function bucketP95ByDaySeconds(items, valueFnMs) {
@@ -560,7 +543,7 @@ function bucketP95ByDaySeconds(items, valueFnMs) {
     if (!iso) continue;
 
     const d = new Date(iso);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const key = toISODateKey(d);
 
     const vMs = Number(valueFnMs(x));
     if (!Number.isFinite(vMs)) continue;
@@ -570,8 +553,9 @@ function bucketP95ByDaySeconds(items, valueFnMs) {
     map.get(key).push(vSec);
   }
 
-  const labels = Array.from(map.keys()).sort();
-  const p95s = labels.map(k => percentile(map.get(k), 95));
+  const keys = Array.from(map.keys()).sort();
+  const labels = keys.map(fromISODateKeyToDMY);
+  const p95s = keys.map(k => percentile(map.get(k), 95));
   return { labels, p95s };
 }
 
@@ -583,7 +567,7 @@ function bucketAvgByDaySeconds(items, valueFnMs) {
     if (!iso) continue;
 
     const d = new Date(iso);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const key = toISODateKey(d);
 
     const vMs = Number(valueFnMs(x));
     if (!Number.isFinite(vMs)) continue;
@@ -595,13 +579,31 @@ function bucketAvgByDaySeconds(items, valueFnMs) {
     agg.n += 1;
   }
 
-  const labels = Array.from(map.keys()).sort();
-  const avgs = labels.map(k => {
+  const keys = Array.from(map.keys()).sort();
+  const labels = keys.map(fromISODateKeyToDMY);
+  const avgs = keys.map(k => {
     const { sum, n } = map.get(k);
     return n ? (sum / n) : null;
   });
 
   return { labels, avgs };
+}
+
+function toISODateKey(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function fromISODateKeyToDMY(key) {
+  const s = String(key || "");
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return s;
+  const dd = m[3];
+  const mm = m[2];
+  const yyyy = m[1];
+  return `${dd}/${mm}/${yyyy}`;
 }
 
 function percentile(values, p) {

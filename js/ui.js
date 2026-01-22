@@ -37,7 +37,7 @@ export function setKPI(id, value) {
  * Conversation list:
  * - Vraag (User) boven
  * - Meta onder
- * - Badge rechts: STATUS VAN LAATSTE ASSISTANT ANTWOORD ✅
+ * - Badge rechts: STATUS VAN LAATSTE ASSISTANT ANTWOORD
  */
 export function renderConversationList(conversations, activeId, onSelect) {
   const root = document.getElementById("convoList");
@@ -67,7 +67,7 @@ export function renderConversationList(conversations, activeId, onSelect) {
     const site = c.workspace_id || c.site || c.channel || "—";
     const typeTopic = formatTypeTopic(c);
 
-    const lastSt = lastAssistantStatus(c); // ✅ truth source
+    const lastSt = lastAssistantStatus(c);
 
     const qDiv = document.createElement("div");
     qDiv.className = "list-q";
@@ -265,11 +265,6 @@ function renderMsgWithStatus(m) {
   `;
 }
 
-/**
- * Status per message:
- * 1) Neem m.escalated/m.success/m.reason als aanwezig (beste)
- * 2) Anders heuristiek (failsafe)
- */
 function inferMessageStatus(m) {
   const role = normalizeRole(m?.role);
 
@@ -281,14 +276,12 @@ function inferMessageStatus(m) {
   if (success) return { kind: "ok", text: "Success" };
   if (failed) return { kind: "bad", text: "Failed" };
 
-  // Als assistant message geen expliciete flags heeft, kan reason helpen
   const reason = String(m?.reason || "").toLowerCase();
   if (role === "assistant") {
     if (reason.includes("escalat") || reason.includes("support")) return { kind: "warn", text: "Support" };
     if (reason.includes("fallback") || reason.includes("failed") || reason.includes("no product")) return { kind: "bad", text: "Failed" };
   }
 
-  // Heuristiek (laatste redmiddel)
   const text = String(m?.content || "");
   const t = text.toLowerCase();
 
@@ -328,24 +321,16 @@ function inferMessageStatus(m) {
   return { kind: "muted", text: "User" };
 }
 
-/**
- * ✅ Conversation-level status = status van LAATSTE Assistant message
- * Jouw normalize sorteert messages newest->oldest, dus we pakken de eerste Assistant.
- */
 function lastAssistantStatus(convo) {
   const msgs = Array.isArray(convo?.messages) ? convo.messages : [];
-
-  // verwacht newest->oldest, dus first match is latest assistant
   const lastAssistant = msgs.find(m => normalizeRole(m?.role) === "assistant");
 
   if (lastAssistant) {
     const st = inferMessageStatus(lastAssistant);
-    // Forceer nette labels
     if (st?.text === "User") return { kind: "muted", text: "Unknown" };
     return st || { kind: "muted", text: "Unknown" };
   }
 
-  // fallback op gesprek outcome (als er geen assistant messages zijn)
   const o = convo?.outcome || {};
   if (o.escalated) return { kind: "warn", text: "Support" };
   if (o.success) return { kind: "ok", text: "Success" };
@@ -388,11 +373,19 @@ function prettyRole(role) {
   return "Unknown";
 }
 
+// Always DD/MM/YYYY HH:MM (nl-NL)
 function fmtDateTime(iso) {
   if (!iso) return "—";
   try {
     const d = new Date(iso);
-    return d.toLocaleString();
+    // nl-NL => dag/maand/jaar
+    return d.toLocaleString("nl-NL", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   } catch {
     return String(iso);
   }
@@ -400,7 +393,7 @@ function fmtDateTime(iso) {
 
 function fmtNum(n) {
   const x = Number(n ?? 0);
-  return Number.isFinite(x) ? x.toLocaleString() : "0";
+  return Number.isFinite(x) ? x.toLocaleString("nl-NL") : "0";
 }
 
 function fmtMoney(n) {

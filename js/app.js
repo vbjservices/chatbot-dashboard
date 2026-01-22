@@ -32,7 +32,7 @@ const state = {
     search: "",
   },
 
-  // ✅ nieuw: latency toggle
+  // latency toggle
   latencyMode: "p95", // "p95" | "avg"
 
   lastLoadedAt: null,
@@ -74,7 +74,18 @@ async function loadData({ preferNetwork = true } = {}) {
       );
 
       setStatusPill("Online");
-      setLastUpdatePill(new Date(state.lastLoadedAt).toLocaleString());
+
+      // DD/MM/YYYY HH:MM
+      setLastUpdatePill(
+        new Date(state.lastLoadedAt).toLocaleString("nl-NL", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
+
       setVersionPill(pickVersion(state.turns));
 
       applyFiltersAndRender({ keepSelection: true });
@@ -95,7 +106,20 @@ async function loadData({ preferNetwork = true } = {}) {
     state.source = cached?.meta?.source || "Cache";
 
     setStatusPill("Offline", "cached");
-    setLastUpdatePill(state.lastLoadedAt ? new Date(state.lastLoadedAt).toLocaleString() : "—");
+
+    // DD/MM/YYYY HH:MM
+    setLastUpdatePill(
+      state.lastLoadedAt
+        ? new Date(state.lastLoadedAt).toLocaleString("nl-NL", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "—"
+    );
+
     setVersionPill(pickVersion(state.turns));
 
     applyFiltersAndRender({ keepSelection: true });
@@ -173,14 +197,13 @@ function applyFiltersAndRender({ keepSelection = true } = {}) {
 
   setKPI("kpiSuccess", totalChats ? `${Math.round((successChats / totalChats) * 100)}%` : "0%");
   setKPI("kpiEscalation", totalChats ? `${Math.round((escalChats / totalChats) * 100)}%` : "0%");
-  setKPI("kpiConvos", String(state.filteredTurns.length)); // aantal chats/rows
+  setKPI("kpiConvos", String(state.filteredTurns.length));
   setKPI("kpiLeads", String(leadChats));
   setKPI("kpiLowConf", "0");
   setKPI("kpiCost", `$${cost.toFixed(6)}`);
 
   repopulateFilters();
 
-  // viewer list + detail
   const onSelect = (id) => {
     state.selectedId = id || null;
     renderConversationList(state.filteredConvos, state.selectedId, onSelect);
@@ -194,14 +217,12 @@ function applyFiltersAndRender({ keepSelection = true } = {}) {
   const selected = state.filteredConvos.find((c) => c.conversation_id === state.selectedId);
   renderConversationDetail(selected || null);
 
-  // Tables — OP TURN LEVEL
   const failedTurns = state.filteredTurns.filter((t) => !(t.success ?? t.outcome?.success));
   const escalTurns = state.filteredTurns.filter((t) => !!(t.escalated ?? t.outcome?.escalated));
 
   renderFailedTable(failedTurns);
   renderEscalationTable(escalTurns);
 
-  // Charts — OP TURN LEVEL
   renderChartsOnly();
 }
 
@@ -221,7 +242,6 @@ function wireUI() {
   const refreshBtn = document.getElementById("refreshBtn");
   const exportBtn = document.getElementById("exportBtn");
 
-  // ✅ nieuw: latency toggles
   const latencyP95Btn = document.getElementById("latencyP95Btn");
   const latencyAvgBtn = document.getElementById("latencyAvgBtn");
 
@@ -258,7 +278,6 @@ function wireUI() {
   if (refreshBtn) refreshBtn.addEventListener("click", () => loadData({ preferNetwork: true }));
   if (exportBtn) exportBtn.addEventListener("click", exportCSV);
 
-  // ✅ latency mode switchers (alleen charts re-renderen)
   if (latencyP95Btn) {
     latencyP95Btn.addEventListener("click", () => {
       state.latencyMode = "p95";
@@ -272,7 +291,6 @@ function wireUI() {
     });
   }
 
-  // init UI state (als page laadt vóór eerste render)
   syncLatencyToggleUI();
 }
 
