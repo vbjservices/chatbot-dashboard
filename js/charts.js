@@ -96,54 +96,54 @@ export function renderCharts({ turns = [], conversations = [] } = {}) {
       }],
     },
     options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    cutout: "72%",
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: "72%",
 
-    // Force default text color for *this chart only*
-    color: theme.legendText,
+      // Force default text color for *this chart only*
+      color: theme.legendText,
 
-    plugins: {
-      legend: {
-        position: "bottom",
-        labels: {
-          // Force white (no more black text)
-          color: theme.legendText,
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: {
+            // Force white (no more black text)
+            color: theme.legendText,
 
-          padding: 14,
-          usePointStyle: true,
-          pointStyle: "circle",
+            padding: 14,
+            usePointStyle: true,
+            pointStyle: "circle",
 
-          generateLabels: (chart) => {
-            const labels = chart.data.labels || [];
-            return labels.map((label, i) => {
-              const isSuccess = i === 0;
+            generateLabels: (chart) => {
+              const labels = chart.data.labels || [];
+              return labels.map((label, i) => {
+                const isSuccess = i === 0;
 
-              const fill = isSuccess ? theme.okLegendFill : theme.failLegendFill;
-              const stroke = isSuccess ? theme.okLegendStroke : theme.failLegendStroke;
+                const fill = isSuccess ? theme.okLegendFill : theme.failLegendFill;
+                const stroke = isSuccess ? theme.okLegendStroke : theme.failLegendStroke;
 
-              return {
-                text: label,
+                return {
+                  text: label,
 
-                // “gradient-like” bullets (fill + edge)
-                fillStyle: fill,
-                strokeStyle: stroke,
-                lineWidth: 2,
+                  // “gradient-like” bullets (fill + edge)
+                  fillStyle: fill,
+                  strokeStyle: stroke,
+                  lineWidth: 2,
 
-                // THE IMPORTANT PART: force text color per item
-                fontColor: theme.legendText,
+                  // THE IMPORTANT PART: force text color per item
+                  fontColor: theme.legendText,
 
-                hidden: !chart.getDataVisibility(i),
-                index: i,
-                pointStyle: "circle",
-              };
-            });
+                  hidden: !chart.getDataVisibility(i),
+                  index: i,
+                  pointStyle: "circle",
+                };
+              });
+            },
           },
         },
+        tooltip: tooltipOpts(theme),
       },
-      tooltip: tooltipOpts(theme),
     },
-  },
   });
 
   // Volume per dag
@@ -222,16 +222,21 @@ export function renderCharts({ turns = [], conversations = [] } = {}) {
     options: barOpts(theme, { yTitle: "Aantal" }),
   });
 
-  // Latency p95 per dag (ms)
-  const p95ByDay = bucketP95ByDay(items, x => x?.metrics?.latency_ms);
+  // -------------------------------
+  // Latency AVG per dag (ms)  ✅ (alleen deze chart aangepast)
+  // - pakt latency uit metrics.latency_ms OF uit latency_ms
+  // - toont gemiddelde per dag (dus jouw 10439/2 = 5219.5)
+  // -------------------------------
+  const avgByDay = bucketAvgByDay(items, x => (x?.metrics?.latency_ms ?? x?.latency_ms));
+
   upsertChart("chartLatency", {
     type: "line",
     plugins: basePlugins,
     data: {
-      labels: p95ByDay.labels,
+      labels: avgByDay.labels,
       datasets: [{
-        label: "Latency p95 (ms)",
-        data: p95ByDay.p95s,
+        label: "Latency avg (ms)",
+        data: avgByDay.avgs,
         borderWidth: 2,
         tension: 0.35,
         pointRadius: 2.5,
@@ -518,6 +523,35 @@ function bucketP95ByDay(items, valueFn) {
   const labels = Array.from(map.keys()).sort();
   const p95s = labels.map(k => percentile(map.get(k), 95));
   return { labels, p95s };
+}
+
+// ✅ nieuw: gemiddelde latency per dag (alleen gebruikt door latency chart)
+function bucketAvgByDay(items, valueFn) {
+  const map = new Map(); // key -> { sum, n }
+
+  for (const x of items) {
+    const iso = x.updated_at || x.created_at;
+    if (!iso) continue;
+
+    const d = new Date(iso);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+    const v = Number(valueFn(x));
+    if (!Number.isFinite(v)) continue;
+
+    if (!map.has(key)) map.set(key, { sum: 0, n: 0 });
+    const agg = map.get(key);
+    agg.sum += v;
+    agg.n += 1;
+  }
+
+  const labels = Array.from(map.keys()).sort();
+  const avgs = labels.map(k => {
+    const { sum, n } = map.get(k);
+    return n ? (sum / n) : null;
+  });
+
+  return { labels, avgs };
 }
 
 function percentile(values, p) {

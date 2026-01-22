@@ -24,7 +24,7 @@ export async function fetchSupabaseRows({
     // Selecteer alleen kolommen die we nodig hebben (scheelt payload)
     // Voeg gerust toe als je dashboard meer nodig heeft.
     const select =
-      "id,workspace_id,bot_key,event_id,conversation_id,created_at,user_message,ai_output,success,escalated,lead,reason,outcome,metrics";
+      "id,workspace_id,bot_key,event_id,conversation_id,created_at,user_message,ai_output,success,escalated,lead,reason,outcome,metrics,latency_ms";
     url.searchParams.set("select", select);
 
     // Filter op tijd (created_at >= sinceISO) als aanwezig
