@@ -35,9 +35,9 @@ export function setKPI(id, value) {
 
 /**
  * Conversation list:
- * - Vraag (user) BOVEN
- * - Meta (tijd • site/kanaal • type/topic) ONDER
- * - Badge rechts (conversation-level)
+ * - Vraag (User) boven
+ * - Meta onder
+ * - Badge rechts: STATUS VAN LAATSTE ASSISTANT ANTWOORD ✅
  */
 export function renderConversationList(conversations, activeId, onSelect) {
   const root = document.getElementById("convoList");
@@ -59,13 +59,15 @@ export function renderConversationList(conversations, activeId, onSelect) {
     item.className = `list-item${isActive ? " active" : ""}`;
 
     const question =
-      (c.messages?.find(m => m.role === "User")?.content) ||
+      (c.messages?.find(m => normalizeRole(m.role) === "user")?.content) ||
       c.user_message ||
       "(geen vraag)";
 
     const when = fmtDateTime(c.updated_at || c.created_at);
     const site = c.workspace_id || c.site || c.channel || "—";
     const typeTopic = formatTypeTopic(c);
+
+    const lastSt = lastAssistantStatus(c); // ✅ truth source
 
     const qDiv = document.createElement("div");
     qDiv.className = "list-q";
@@ -75,7 +77,7 @@ export function renderConversationList(conversations, activeId, onSelect) {
     top.className = "list-top";
     top.innerHTML = `
       <span>${escapeHTML(`${when} • ${site} • ${typeTopic}`)}</span>
-      <span class="badge ${badgeClassConversation(c)}">${escapeHTML(badgeTextConversation(c))}</span>
+      <span class="badge ${lastSt.kind}">${escapeHTML(lastSt.text)}</span>
     `;
 
     item.appendChild(qDiv);
@@ -88,8 +90,8 @@ export function renderConversationList(conversations, activeId, onSelect) {
 
 /**
  * Conversation detail:
- * - Header met total cost bovenaan (niet onderaan scrollen)
- * - Per message bubble een status-chip (Success / Failed / Support)
+ * - tokens/cost bovenaan
+ * - per message bubble een status-chip (Success / Failed / Support)
  */
 export function renderConversationDetail(convo) {
   const root = document.getElementById("convoDetail");
@@ -102,12 +104,14 @@ export function renderConversationDetail(convo) {
 
   const id = stableConvoId(convo) || "—";
 
-  // cost/tokens bovenaan (en niet alleen onderaan)
   const tokens = fmtNum(convo.metrics?.tokens);
   const cost = fmtMoney(convo.metrics?.total_cost);
 
-  // messages: verwacht newest->oldest (jij sorteert dat nu in normalize)
+  // messages: verwacht newest->oldest (jij sorteert dit in normalize)
   const msgs = Array.isArray(convo.messages) ? convo.messages : [];
+
+  // Conversation status badges ook baseren op LAATSTE Assistant
+  const lastSt = lastAssistantStatus(convo);
 
   root.innerHTML = `
     <div class="detail-head">
@@ -122,8 +126,7 @@ export function renderConversationDetail(convo) {
       </div>
 
       <div class="detail-badges">
-        ${badge(convo.outcome?.success ? "Success" : "Not success", convo.outcome?.success ? "ok" : "bad")}
-        ${badge(convo.outcome?.escalated ? "Support" : "—", convo.outcome?.escalated ? "warn" : "muted")}
+        ${badge(lastSt.text, lastSt.kind)}
         ${badge(convo.outcome?.lead ? "Lead" : "—", convo.outcome?.lead ? "ok" : "muted")}
       </div>
     </div>
@@ -143,7 +146,7 @@ export function renderConversationDetail(convo) {
  * failedTable HTML heeft kolommen:
  * Datum | Kanaal | Type | Vraag | Reason
  *
- * rows kan turns OF convos zijn; wij verwachten turns (zoals jouw app.js nu doet)
+ * rows verwacht turns (zoals jouw app.js nu doet)
  */
 export function renderFailedTable(rows) {
   const tbl = document.getElementById("failedTable");
@@ -160,7 +163,10 @@ export function renderFailedTable(rows) {
     const created = r.updated_at || r.created_at;
     const channel = r.channel || r.workspace_id || "—";
     const type = r.type || "—";
-    const q = r.user_message || r.messages?.find(m => m.role === "User")?.content || "";
+    const q =
+      r.user_message ||
+      r.messages?.find(m => normalizeRole(m.role) === "user")?.content ||
+      "";
     const reason = r.reason || r.outcome?.reason || "—";
 
     const tr = document.createElement("tr");
@@ -199,7 +205,10 @@ export function renderEscalationTable(rows) {
   for (const r of top) {
     const created = r.updated_at || r.created_at;
     const channel = r.channel || r.workspace_id || "—";
-    const q = r.user_message || r.messages?.find(m => m.role === "User")?.content || "";
+    const q =
+      r.user_message ||
+      r.messages?.find(m => normalizeRole(m.role) === "user")?.content ||
+      "";
     const action = "Follow-up";
     const lead = (r.lead ?? r.outcome?.lead) ? "Yes" : "No";
 
@@ -226,21 +235,21 @@ export function renderEscalationTable(rows) {
    ========================= */
 
 function renderMsgWithStatus(m) {
-  const role = m?.role || "unknown";
+  const roleRaw = m?.role || "unknown";
+  const role = normalizeRole(roleRaw); // user/assistant/system
+  const roleLabel = prettyRole(roleRaw); // User/Assistant/System
   const at = m?.at ? fmtDateTime(m.at) : "—";
   const content = m?.content || "";
 
-  // status per antwoord: alleen meaningful op assistant/system (maar we tonen ook op user voor consistentie)
   const st = inferMessageStatus(m);
 
   const cls =
-    role === "User"
+    role === "user"
       ? "msg user"
-      : role === "Assistant"
+      : role === "assistant"
       ? "msg bot"
       : "msg system";
 
-  // status chip style (badge ok/warn/bad/muted)
   const chip = st?.text
     ? `<span class="badge ${st.kind}">${escapeHTML(st.text)}</span>`
     : `<span class="badge muted">—</span>`;
@@ -248,7 +257,7 @@ function renderMsgWithStatus(m) {
   return `
     <div class="${cls}">
       <div class="meta">
-        <span>${escapeHTML(role)} • ${escapeHTML(at)}</span>
+        <span>${escapeHTML(roleLabel)} • ${escapeHTML(at)}</span>
         ${chip}
       </div>
       <div class="content">${escapeHTML(content)}</div>
@@ -257,17 +266,13 @@ function renderMsgWithStatus(m) {
 }
 
 /**
- * Probeert status op message-level te pakken:
- * 1) m.escalated/m.success/m.failed/m.reason als je ze meegeeft (beste)
- * 2) anders heuristiek op content
+ * Status per message:
+ * 1) Neem m.escalated/m.success/m.reason als aanwezig (beste)
+ * 2) Anders heuristiek (failsafe)
  */
 function inferMessageStatus(m) {
-  const role = String(m?.role || "").toLowerCase();
-  const text = String(m?.content || "");
-  const t = text.toLowerCase();
+  const role = normalizeRole(m?.role);
 
-  // Als jij straks turn-metadata aan assistant messages hangt:
-  // { success, escalated, reason } → dan pakt dit dat direct.
   const escalated = m?.escalated === true;
   const success = m?.success === true;
   const failed = m?.failed === true;
@@ -276,8 +281,18 @@ function inferMessageStatus(m) {
   if (success) return { kind: "ok", text: "Success" };
   if (failed) return { kind: "bad", text: "Failed" };
 
-  // Heuristiek (failsafe)
-  if (role === "Assistant" || role === "system") {
+  // Als assistant message geen expliciete flags heeft, kan reason helpen
+  const reason = String(m?.reason || "").toLowerCase();
+  if (role === "assistant") {
+    if (reason.includes("escalat") || reason.includes("support")) return { kind: "warn", text: "Support" };
+    if (reason.includes("fallback") || reason.includes("failed") || reason.includes("no product")) return { kind: "bad", text: "Failed" };
+  }
+
+  // Heuristiek (laatste redmiddel)
+  const text = String(m?.content || "");
+  const t = text.toLowerCase();
+
+  if (role === "assistant" || role === "system") {
     if (
       t.includes("info@") ||
       t.includes("klantenservice") ||
@@ -307,32 +322,35 @@ function inferMessageStatus(m) {
 
     if (hasLink || hasNext) return { kind: "ok", text: "Success" };
 
-    // unknown: niet liegen
     return { kind: "muted", text: "Unknown" };
   }
 
-  // user message: geen success/fail betekenis
   return { kind: "muted", text: "User" };
 }
 
-/* =========================
-   Conversation-level badges
-   ========================= */
+/**
+ * ✅ Conversation-level status = status van LAATSTE Assistant message
+ * Jouw normalize sorteert messages newest->oldest, dus we pakken de eerste Assistant.
+ */
+function lastAssistantStatus(convo) {
+  const msgs = Array.isArray(convo?.messages) ? convo.messages : [];
 
-function badgeTextConversation(c) {
-  const o = c?.outcome || {};
-  if (o.escalated) return "Support";
-  if (o.success) return "Success";
-  if (o.reason) return "Failed";
-  return "—";
-}
+  // verwacht newest->oldest, dus first match is latest assistant
+  const lastAssistant = msgs.find(m => normalizeRole(m?.role) === "assistant");
 
-function badgeClassConversation(c) {
-  const o = c?.outcome || {};
-  if (o.escalated) return "warn";
-  if (o.success) return "ok";
-  if (o.reason) return "bad";
-  return "muted";
+  if (lastAssistant) {
+    const st = inferMessageStatus(lastAssistant);
+    // Forceer nette labels
+    if (st?.text === "User") return { kind: "muted", text: "Unknown" };
+    return st || { kind: "muted", text: "Unknown" };
+  }
+
+  // fallback op gesprek outcome (als er geen assistant messages zijn)
+  const o = convo?.outcome || {};
+  if (o.escalated) return { kind: "warn", text: "Support" };
+  if (o.success) return { kind: "ok", text: "Success" };
+  if (o.reason) return { kind: "bad", text: "Failed" };
+  return { kind: "muted", text: "Unknown" };
 }
 
 /* =========================
@@ -352,6 +370,22 @@ function formatTypeTopic(c) {
 
 function badge(text, kind) {
   return `<span class="badge ${kind}">${escapeHTML(text)}</span>`;
+}
+
+function normalizeRole(role) {
+  const r = String(role || "").toLowerCase();
+  if (r === "user") return "user";
+  if (r === "assistant" || r === "bot") return "assistant";
+  if (r === "system") return "system";
+  return "unknown";
+}
+
+function prettyRole(role) {
+  const r = normalizeRole(role);
+  if (r === "user") return "User";
+  if (r === "assistant") return "Assistant";
+  if (r === "system") return "System";
+  return "Unknown";
 }
 
 function fmtDateTime(iso) {
