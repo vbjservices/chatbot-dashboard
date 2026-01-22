@@ -205,12 +205,12 @@ export function groupTurnsToConversations(turns) {
 
   const conversations = Array.from(map.values());
 
-  // sort msgs: NEWEST FIRST (DESC) ✅
+  // sort msgs: NEWEST FIRST (DESC)
   for (const c of conversations) {
     c.messages.sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));
   }
 
-  // newest conversations first ✅
+  // newest conversations first
   conversations.sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")));
 
   return conversations;
