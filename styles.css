@@ -81,7 +81,7 @@ html, body { overflow-x: hidden; }
   padding:14px;
   box-shadow: var(--shadow);
 
-  /* ✅ CRITICAL: cards in grid must be allowed to shrink */
+  /* CRITICAL: cards in grid must be allowed to shrink */
   min-width: 0;
 }
 
@@ -98,7 +98,7 @@ html, body { overflow-x: hidden; }
 .charts-grid{grid-template-columns: repeat(2, minmax(0,1fr))}
 .tables-grid{grid-template-columns: repeat(2, minmax(0,1fr))}
 
-/* ✅ CRITICAL: grid children may overflow unless they can shrink */
+/* CRITICAL: grid children may overflow unless they can shrink */
 .grid > * { min-width: 0; }
 
 /* =========================
@@ -188,20 +188,20 @@ select option:checked {
    Tables (REAL mobile horizontal scroll)
    ========================= */
 
-/* ✅ wrapper is the scroll container; it MUST NOT affect card width */
+/* wrapper is the scroll container; it MUST NOT affect card width */
 .table-wrap{
   width: 100%;
   max-width: 100%;
   border-radius:12px;
   border:1px solid var(--border);
-  overflow-x:auto;        /* ✅ horizontal scroll */
+  overflow-x:auto;        /* horizontal scroll */
   overflow-y:hidden;
   -webkit-overflow-scrolling:touch;
   overscroll-behavior-x: contain;
-  touch-action: pan-x;    /* ✅ allow horizontal swipe here */
+  touch-action: pan-x;    /* allow horizontal swipe here */
 }
 
-/* ✅ table can be wider than wrapper, but wrapper/card won't stretch due to min-width:0 */
+/* table can be wider than wrapper, but wrapper/card won't stretch due to min-width:0 */
 .table{
   border-collapse:collapse;
   font-size:13px;
@@ -242,7 +242,6 @@ select option:checked {
   gap:12px;
   min-height:420px;
 
-  /* ✅ allow right pane to shrink */
   min-width:0;
 }
 
@@ -292,7 +291,7 @@ select option:checked {
   padding:12px;
   background:rgba(18,26,51,.55);
   overflow:auto;
-  min-width:0; /* ✅ critical */
+  min-width:0;
 }
 
 .empty{color:var(--muted); padding:10px}
