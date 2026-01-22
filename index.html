@@ -135,8 +135,15 @@
         <canvas id="chartOutcomes"></canvas>
       </div>
 
+      <!-- ✅ Updated: Latency header met toggle -->
       <div class="card">
-        <div class="card-title">Latency (p95)</div>
+        <div class="card-head">
+          <div class="card-title" id="latencyTitle">Latency (p95, s)</div>
+          <div class="segmented" role="group" aria-label="Latency mode">
+            <button class="btn btn-sm" id="latencyP95Btn" type="button">P95</button>
+            <button class="btn btn-sm" id="latencyAvgBtn" type="button">Average</button>
+          </div>
+        </div>
         <canvas id="chartLatency"></canvas>
       </div>
     </section>
@@ -181,19 +188,19 @@
     </section>
 
     <!-- Conversation viewer -->
-    <section class="card">
-      <div class="card-title">Conversation viewer</div>
-      <div class="split">
-        <div class="list" id="convoList"></div>
-        <div class="detail" id="convoDetail">
-          <div class="empty">Selecteer een gesprek links.</div>
+    <section class="grid">
+      <div class="card">
+        <div class="card-title">Conversations</div>
+        <div class="split">
+          <div class="list" id="convoList"></div>
+          <div class="detail" id="convoDetail"></div>
         </div>
       </div>
     </section>
-  </main>
 
-  <footer class="footer">
-    <div>© VBJ Services 2026</div>
-  </footer>
+    <div class="footer">
+      © Dashboard • Built for internal analytics
+    </div>
+  </main>
 </body>
 </html>

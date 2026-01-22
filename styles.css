@@ -91,6 +91,34 @@ html, body { overflow-x: hidden; }
   color:#f2f6ff;
 }
 
+/* ✅ nieuw: header voor title + controls */
+.card-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:12px;
+}
+.card-head .card-title{
+  margin:2px 0; /* laat de header zelf de spacing bepalen */
+}
+
+/* ✅ nieuw: segmented buttons */
+.segmented{
+  display:inline-flex;
+  gap:8px;
+}
+.btn-sm{
+  padding:8px 10px;
+  border-radius:999px;
+  font-size:12px;
+  min-height:36px;
+}
+.btn.active{
+  background:rgba(124,58,237,.35);
+  border-color:rgba(124,58,237,.6);
+}
+
 .grid{display:grid; gap:14px; margin:14px 0}
 
 /* desktop defaults */
@@ -430,7 +458,7 @@ canvas{
     line-height:1.15;
   }
   .kpi-value{
-    font-size:22px;              /* was 24 */
+    font-size:22px;              /* was 28 */
     line-height:1.05;
     margin:6px 0 2px;
     letter-spacing:-.2px;

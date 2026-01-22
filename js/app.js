@@ -32,6 +32,9 @@ const state = {
     search: "",
   },
 
+  // ✅ nieuw: latency toggle
+  latencyMode: "p95", // "p95" | "avg"
+
   lastLoadedAt: null,
   source: "—",
 };
@@ -199,8 +202,13 @@ function applyFiltersAndRender({ keepSelection = true } = {}) {
   renderEscalationTable(escalTurns);
 
   // Charts — OP TURN LEVEL
+  renderChartsOnly();
+}
+
+function renderChartsOnly() {
   destroyCharts();
-  renderCharts({ turns: state.filteredTurns });
+  renderCharts({ turns: state.filteredTurns, latencyMode: state.latencyMode });
+  syncLatencyToggleUI();
 }
 
 /* ---------------- UI wiring ---------------- */
@@ -212,6 +220,10 @@ function wireUI() {
   const searchInput = document.getElementById("searchInput");
   const refreshBtn = document.getElementById("refreshBtn");
   const exportBtn = document.getElementById("exportBtn");
+
+  // ✅ nieuw: latency toggles
+  const latencyP95Btn = document.getElementById("latencyP95Btn");
+  const latencyAvgBtn = document.getElementById("latencyAvgBtn");
 
   if (rangeSelect) state.filters.range = rangeSelect.value;
 
@@ -245,6 +257,38 @@ function wireUI() {
 
   if (refreshBtn) refreshBtn.addEventListener("click", () => loadData({ preferNetwork: true }));
   if (exportBtn) exportBtn.addEventListener("click", exportCSV);
+
+  // ✅ latency mode switchers (alleen charts re-renderen)
+  if (latencyP95Btn) {
+    latencyP95Btn.addEventListener("click", () => {
+      state.latencyMode = "p95";
+      renderChartsOnly();
+    });
+  }
+  if (latencyAvgBtn) {
+    latencyAvgBtn.addEventListener("click", () => {
+      state.latencyMode = "avg";
+      renderChartsOnly();
+    });
+  }
+
+  // init UI state (als page laadt vóór eerste render)
+  syncLatencyToggleUI();
+}
+
+function syncLatencyToggleUI() {
+  const latencyP95Btn = document.getElementById("latencyP95Btn");
+  const latencyAvgBtn = document.getElementById("latencyAvgBtn");
+  const latencyTitle = document.getElementById("latencyTitle");
+
+  if (latencyP95Btn) latencyP95Btn.classList.toggle("active", state.latencyMode === "p95");
+  if (latencyAvgBtn) latencyAvgBtn.classList.toggle("active", state.latencyMode === "avg");
+
+  if (latencyTitle) {
+    latencyTitle.textContent = state.latencyMode === "avg"
+      ? "Latency (avg, s)"
+      : "Latency (p95, s)";
+  }
 }
 
 function repopulateFilters() {

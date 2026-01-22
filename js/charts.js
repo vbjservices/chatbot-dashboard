@@ -31,7 +31,7 @@ export function upsertChart(canvasId, config) {
  * renderCharts:
  * Gebruik bij voorkeur turns (rows). Conversations mag nog, maar turns is waarheid.
  */
-export function renderCharts({ turns = [], conversations = [] } = {}) {
+export function renderCharts({ turns = [], conversations = [], latencyMode = "p95" } = {}) {
   const items = (turns && turns.length) ? turns : conversations;
 
   // Theme uit CSS (robust)
@@ -223,20 +223,29 @@ export function renderCharts({ turns = [], conversations = [] } = {}) {
   });
 
   // -------------------------------
-  // Latency AVG per dag (ms)  ✅ (alleen deze chart aangepast)
-  // - pakt latency uit metrics.latency_ms OF uit latency_ms
-  // - toont gemiddelde per dag (dus jouw 10439/2 = 5219.5)
+  // Latency chart (toggle: p95 / avg) — in seconden met decimalen
+  // - leest latency uit metrics.latency_ms OF latency_ms
+  // - zet ms -> s
+  // - tooltip formatting alleen voor latency chart
   // -------------------------------
-  const avgByDay = bucketAvgByDay(items, x => (x?.metrics?.latency_ms ?? x?.latency_ms));
+  const latencyMs = (x) => (x?.metrics?.latency_ms ?? x?.latency_ms);
+
+  const series =
+    (latencyMode === "avg")
+      ? bucketAvgByDaySeconds(items, latencyMs)
+      : bucketP95ByDaySeconds(items, latencyMs);
+
+  const latencyLabel = latencyMode === "avg" ? "Latency avg (s)" : "Latency p95 (s)";
+  const latencyData = latencyMode === "avg" ? series.avgs : series.p95s;
 
   upsertChart("chartLatency", {
     type: "line",
     plugins: basePlugins,
     data: {
-      labels: avgByDay.labels,
+      labels: series.labels,
       datasets: [{
-        label: "Latency avg (ms)",
-        data: avgByDay.avgs,
+        label: latencyLabel,
+        data: latencyData,
         borderWidth: 2,
         tension: 0.35,
         pointRadius: 2.5,
@@ -247,13 +256,14 @@ export function renderCharts({ turns = [], conversations = [] } = {}) {
         backgroundColor: (ctx) => areaFillGradient(ctx.chart.ctx, theme.warn),
       }],
     },
-    options: lineOpts(theme, { yTitle: "ms", spanGaps: true }),
+    options: lineOptsWithLatencySeconds(theme, { yTitle: "s", spanGaps: true }),
   });
 }
 
 /* ---------- Chart options (consistent + pro) ---------- */
 
 function tooltipOpts(theme) {
+  // ✅ Dit is weer je originele tooltip (geen latency formatting meer!)
   return {
     backgroundColor: "rgba(10,14,28,.92)",
     borderColor: "rgba(255,255,255,.14)",
@@ -297,6 +307,46 @@ function lineOpts(theme, { yTitle = "", spanGaps = false } = {}) {
     },
     scales: baseScale(theme, { yTitle }),
   };
+}
+
+// ✅ alleen voor latency chart: seconden + decimalen in tooltip en y-as
+function lineOptsWithLatencySeconds(theme, { yTitle = "s", spanGaps = false } = {}) {
+  const opts = lineOpts(theme, { yTitle, spanGaps });
+
+  // tooltip: alleen latency
+  opts.plugins.tooltip = {
+    ...tooltipOpts(theme),
+    callbacks: {
+      ...tooltipOpts(theme).callbacks,
+      label: (ctx) => {
+        const label = ctx.dataset?.label ? `${ctx.dataset.label}: ` : "";
+        const v = ctx.raw;
+        if (v == null || !Number.isFinite(Number(v))) return `${label}—`;
+        const n = Number(v);
+        // netjes: <10s => 3 decimals, anders 2
+        const s = n < 10 ? n.toFixed(3) : n.toFixed(2);
+        return `${label}${s}s`;
+      },
+    },
+  };
+
+  // y-as ticks: seconden met decimals
+  opts.scales = {
+    ...opts.scales,
+    y: {
+      ...opts.scales.y,
+      ticks: {
+        ...opts.scales.y.ticks,
+        callback: (val) => {
+          const n = Number(val);
+          if (!Number.isFinite(n)) return val;
+          return n < 10 ? n.toFixed(2) : n.toFixed(1);
+        },
+      },
+    },
+  };
+
+  return opts;
 }
 
 function barOpts(theme, { yTitle = "" } = {}) {
@@ -401,28 +451,23 @@ function getTheme() {
   const fail = "#ef4444";
 
   // Groen: iets lichter, maar niet neon
-  const okBase = lightenHex(ok, 0.10);         // <- groen lichter
-  const okGlow = withAlpha(okBase, 0.82);      // <- minder glow (minder “outer dissolve” vibe)
+  const okBase = lightenHex(ok, 0.10);
+  const okGlow = withAlpha(okBase, 0.82);
 
   // Rood: iets dieper maar cleaner
   const failBase = deepenHex(fail, 0.06);
   const failGlow = withAlpha(lightenHex(failBase, 0.06), 0.80);
 
-  // Cruciaal: buitenrand fade minder - eerdere rgba(0,0,0,.12)
-  // Maak dit nóg subtieler als je wilt: alpha 0.04 -> 0.02
   const rimFade = "rgba(0,0,0,.04)";
 
-  // Legend text moet wit op dark UI
   const legendText = text || "#9b9b9bff";
 
-  // “Gradient-like” legend bullets: highlight + edge
   const okLegendFill = withAlpha(okBase, 0.95);
   const okLegendStroke = withAlpha(deepenHex(okBase, 0.50), 0.95);
 
   const failLegendFill = withAlpha(failBase, 0.95);
   const failLegendStroke = withAlpha(deepenHex(failBase, 0.50), 0.95);
 
-  // “Other” (voor andere charts)
   const otherBase = "#2a3552";
   const otherGlow = "rgba(142,160,200,.55)";
 
@@ -433,26 +478,22 @@ function getTheme() {
     ok: ok,
     warn,
 
-    // donut
     okBase,
     okGlow,
     failBase,
     failGlow,
     rimFade,
 
-    // legend
     legendText,
     okLegendFill,
     okLegendStroke,
     failLegendFill,
     failLegendStroke,
 
-    // line/bar glows
     accentGlow: withAlpha(accent, 0.85),
     okGlowStrong: withAlpha(ok, 0.85),
     warnGlow: withAlpha(warn, 0.85),
 
-    // misc
     otherBase,
     otherGlow,
 
@@ -503,7 +544,7 @@ function bucketByDay(items) {
   return { labels, counts: labels.map(k => map.get(k).count) };
 }
 
-function bucketP95ByDay(items, valueFn) {
+function bucketP95ByDaySeconds(items, valueFnMs) {
   const map = new Map();
 
   for (const x of items) {
@@ -513,11 +554,12 @@ function bucketP95ByDay(items, valueFn) {
     const d = new Date(iso);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-    const v = Number(valueFn(x));
-    if (!Number.isFinite(v)) continue;
+    const vMs = Number(valueFnMs(x));
+    if (!Number.isFinite(vMs)) continue;
 
+    const vSec = vMs / 1000;
     if (!map.has(key)) map.set(key, []);
-    map.get(key).push(v);
+    map.get(key).push(vSec);
   }
 
   const labels = Array.from(map.keys()).sort();
@@ -525,8 +567,7 @@ function bucketP95ByDay(items, valueFn) {
   return { labels, p95s };
 }
 
-// ✅ nieuw: gemiddelde latency per dag (alleen gebruikt door latency chart)
-function bucketAvgByDay(items, valueFn) {
+function bucketAvgByDaySeconds(items, valueFnMs) {
   const map = new Map(); // key -> { sum, n }
 
   for (const x of items) {
@@ -536,12 +577,13 @@ function bucketAvgByDay(items, valueFn) {
     const d = new Date(iso);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-    const v = Number(valueFn(x));
-    if (!Number.isFinite(v)) continue;
+    const vMs = Number(valueFnMs(x));
+    if (!Number.isFinite(vMs)) continue;
 
+    const vSec = vMs / 1000;
     if (!map.has(key)) map.set(key, { sum: 0, n: 0 });
     const agg = map.get(key);
-    agg.sum += v;
+    agg.sum += vSec;
     agg.n += 1;
   }
 
