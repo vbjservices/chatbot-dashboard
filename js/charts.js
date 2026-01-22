@@ -408,7 +408,7 @@ function getTheme() {
   const rimFade = "rgba(0,0,0,.04)";
 
   // Legend text moet wit op dark UI
-  const legendText = text || "#e8eefc";
+  const legendText = text || "#9b9b9bff";
 
   // “Gradient-like” legend bullets: highlight + edge
   const okLegendFill = withAlpha(okBase, 0.95);

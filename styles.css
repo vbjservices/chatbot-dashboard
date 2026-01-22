@@ -188,25 +188,21 @@ select option:checked {
    Tables (REAL mobile horizontal scroll)
    ========================= */
 
-/* wrapper is the scroll container; it MUST NOT affect card width */
 .table-wrap{
   width: 100%;
   max-width: 100%;
   border-radius:12px;
   border:1px solid var(--border);
-  overflow-x:auto;        /* horizontal scroll */
+  overflow-x:auto;
   overflow-y:hidden;
   -webkit-overflow-scrolling:touch;
   overscroll-behavior-x: contain;
-  touch-action: pan-x;    /* allow horizontal swipe here */
+  touch-action: pan-x;
 }
 
-/* table can be wider than wrapper, but wrapper/card won't stretch due to min-width:0 */
 .table{
   border-collapse:collapse;
   font-size:13px;
-
-  /* Let content define width, but never smaller than wrapper */
   width: max-content;
   min-width: 100%;
 }
@@ -225,8 +221,6 @@ select option:checked {
   border-bottom:1px solid rgba(255,255,255,.05);
   color:rgba(232,238,252,.9);
   vertical-align:top;
-
-  /* ensures columns don't wrap and instead overflow horizontally (scroll) */
   white-space: nowrap;
 }
 
@@ -241,11 +235,9 @@ select option:checked {
   grid-template-columns: 380px minmax(0, 1fr);
   gap:12px;
   min-height:420px;
-
   min-width:0;
 }
 
-/* LEFT LIST */
 .list{
   border:1px solid var(--border);
   border-radius:var(--radius-sm);
@@ -284,7 +276,6 @@ select option:checked {
   line-height:1.25;
 }
 
-/* RIGHT DETAIL */
 .detail{
   border:1px solid var(--border);
   border-radius:var(--radius-sm);
@@ -324,21 +315,18 @@ select option:checked {
   overflow-wrap: anywhere;
 }
 
-/* USER = accent / vraag */
 .msg.user{
   background:linear-gradient(180deg, rgba(124,58,237,.38), rgba(124,58,237,.16));
   border-color:rgba(124,58,237,.55);
   box-shadow:0 10px 22px rgba(124,58,237,.16);
 }
 
-/* ASSISTANT / BOT */
 .msg.bot,
 .msg.assistant{
   background:linear-gradient(180deg, rgba(34,197,94,.16), rgba(10,14,28,.55));
   border-color:rgba(34,197,94,.35);
 }
 
-/* SYSTEM */
 .msg.system{
   background:linear-gradient(180deg, rgba(245,158,11,.16), rgba(10,14,28,.55));
   border-color:rgba(245,158,11,.35);
@@ -410,7 +398,8 @@ canvas{
   .list{max-height: 320px}
 }
 
-@media (max-width:640px){
+/* HERE is the actual fix: grid + compact KPI cards on mobile */
+@media (max-width:768px){
   .topbar{
     flex-direction:column;
     align-items:stretch;
@@ -426,8 +415,32 @@ canvas{
 
   .card{ padding:12px; border-radius:14px; }
 
-  .kpi-grid{grid-template-columns:repeat(2, minmax(0, 1fr))}
-  .kpi-value{font-size:24px}
+  /* KPI grid: 2 per row */
+  .kpi-grid{
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:12px;
+  }
+
+  /* KPI cards: remove “giant block” feeling */
+  .kpi{
+    padding:12px;                /* was 14 */
+  }
+  .kpi-label{
+    font-size:12px;
+    line-height:1.15;
+  }
+  .kpi-value{
+    font-size:22px;              /* was 24 */
+    line-height:1.05;
+    margin:6px 0 2px;
+    letter-spacing:-.2px;
+  }
+  .kpi-help{
+    font-size:12px;
+    line-height:1.25;
+    margin-top:6px;
+    overflow-wrap:anywhere;
+  }
 
   .filters-row{ align-items:stretch; gap:10px; }
   .field{ min-width:100%; flex: 1 1 100%; }
@@ -441,7 +454,7 @@ canvas{
   .detail{padding:10px}
 }
 
-@media (max-width:420px){
+@media (max-width:220px){
   .top-actions{grid-template-columns:1fr}
   .kpi-grid{grid-template-columns:1fr}
   .kpi-value{font-size:22px}
