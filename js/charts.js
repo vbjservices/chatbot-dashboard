@@ -210,8 +210,8 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
   /*
     Latency chart (toggle: p95 / avg) in seconds with decimals.
     Continuous by day: we use all chat-days (bucketByDay), even if latency missing.
-    Calculation uses only latency > 0.
-    If a day has no latency > 0, we still show a point: 0.
+    Calculation uses only latency > 0 (and finite).
+    If a day has no valid latency, we still show a point: 0.
   */
   const latencyMs = (x) => (x?.metrics?.latency_ms ?? x?.latency_ms);
 
@@ -557,8 +557,24 @@ function fromISODateKeyToDMY(key) {
   Continuous latency buckets:
   - labels: all days that have chats (same as bucketByDay)
   - calc uses only latency > 0
-  - if day has no latency>0, return 0 (to still draw a point)
+  - if day has no valid latency, return 0 (to still draw a point)
 */
+
+/**
+ * Normalize latency to seconds.
+ * Accepts either:
+ * - milliseconds (common: values like 154, 2266, 7656)
+ * - seconds (common: values like 0.154, 2.266, 7.656)
+ *
+ * Heuristic:
+ * - if v > 120 => treat as milliseconds and divide by 1000
+ * - else => treat as seconds
+ */
+function latencyToSeconds(vRaw) {
+  const v = Number(vRaw);
+  if (!Number.isFinite(v) || v <= 0) return null;
+  return (v > 120) ? (v / 1000) : v;
+}
 
 function bucketP95ByDaySecondsContinuous(items, valueFnMs) {
   const dayInfo = bucketByDay(items); // { keys, labels, counts }
@@ -570,10 +586,9 @@ function bucketP95ByDaySecondsContinuous(items, valueFnMs) {
 
     const key = toISODateKey(new Date(iso));
 
-    const vMs = Number(valueFnMs(x));
-    if (!Number.isFinite(vMs) || vMs <= 0) continue; // only latency > 0 counts
+    const vSec = latencyToSeconds(valueFnMs(x));
+    if (vSec == null) continue; // only valid latency counts
 
-    const vSec = vMs / 1000;
     if (!valsByKey.has(key)) valsByKey.set(key, []);
     valsByKey.get(key).push(vSec);
   }
@@ -597,10 +612,9 @@ function bucketAvgByDaySecondsContinuous(items, valueFnMs) {
 
     const key = toISODateKey(new Date(iso));
 
-    const vMs = Number(valueFnMs(x));
-    if (!Number.isFinite(vMs) || vMs <= 0) continue; // only latency > 0 counts
+    const vSec = latencyToSeconds(valueFnMs(x));
+    if (vSec == null) continue; // only valid latency counts
 
-    const vSec = vMs / 1000;
     if (!aggByKey.has(key)) aggByKey.set(key, { sum: 0, n: 0 });
     const agg = aggByKey.get(key);
     agg.sum += vSec;
