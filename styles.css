@@ -9,10 +9,12 @@
   --bad:#ef4444;
   --accent:#7c3aed;
 
-  /* extra helpers */
   --shadow: 0 10px 30px rgba(0,0,0,.25);
   --radius: 16px;
   --radius-sm: 14px;
+
+  /* sidebar */
+  --sidebar-w: 340px;
 }
 
 *{box-sizing:border-box}
@@ -28,7 +30,6 @@ body{
   color:var(--text);
 }
 
-/* prevent page-level horizontal scroll, but allow inner scrollers */
 html, body { overflow-x: hidden; }
 
 /* =========================
@@ -56,12 +57,23 @@ html, body { overflow-x: hidden; }
 .brand-title{font-weight:700; letter-spacing:.2px}
 .brand-subtitle{font-size:12px; color:var(--muted); margin-top:2px}
 
-/* allow top-actions to wrap on narrow widths */
-.top-actions{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  justify-content:flex-end;
+/* Toggle button: always visible, fixed top-right */
+.sidebar-toggle{
+  cursor:pointer;
+  background:rgba(255,255,255,.06);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:10px 12px;
+  border-radius:999px;
+  min-height:44px;
+
+  position:fixed;
+  top:12px;
+  right:12px;
+  z-index:30;
+
+  backdrop-filter: blur(8px);
+  background: rgba(11,16,32,.65);
 }
 
 /* =========================
@@ -74,14 +86,18 @@ html, body { overflow-x: hidden; }
   padding:0 16px;
 }
 
+.layout{
+  display:block; /* sidebar no longer participates in layout */
+}
+
+.main{ min-width:0; }
+
 .card{
   background:rgba(18,26,51,.88);
   border:1px solid var(--border);
   border-radius:var(--radius);
   padding:14px;
   box-shadow: var(--shadow);
-
-  /* CRITICAL: cards in grid must be allowed to shrink */
   min-width: 0;
 }
 
@@ -91,7 +107,6 @@ html, body { overflow-x: hidden; }
   color:#f2f6ff;
 }
 
-/* nieuw: header voor title + controls */
 .card-head{
   display:flex;
   align-items:center;
@@ -99,25 +114,7 @@ html, body { overflow-x: hidden; }
   gap:10px;
   margin-bottom:12px;
 }
-.card-head .card-title{
-  margin:2px 0; /* laat de header zelf de spacing bepalen */
-}
-
-/* nieuw: segmented buttons */
-.segmented{
-  display:inline-flex;
-  gap:8px;
-}
-.btn-sm{
-  padding:8px 10px;
-  border-radius:999px;
-  font-size:12px;
-  min-height:36px;
-}
-.btn.active{
-  background:rgba(124,58,237,.35);
-  border-color:rgba(124,58,237,.6);
-}
+.card-head .card-title{ margin:2px 0; }
 
 .grid{display:grid; gap:14px; margin:14px 0}
 
@@ -125,18 +122,71 @@ html, body { overflow-x: hidden; }
 .kpi-grid{grid-template-columns: repeat(6, minmax(0,1fr))}
 .charts-grid{grid-template-columns: repeat(2, minmax(0,1fr))}
 .tables-grid{grid-template-columns: repeat(2, minmax(0,1fr))}
-
-/* CRITICAL: grid children may overflow unless they can shrink */
 .grid > * { min-width: 0; }
 
 /* =========================
-   KPIs
+   Sidebar overlay (all sizes)
    ========================= */
 
-.kpi{padding:14px}
-.kpi-label{color:var(--muted); font-size:12px}
-.kpi-value{font-size:28px; font-weight:800; margin:6px 0 2px}
-.kpi-help{font-size:12px; color:rgba(232,238,252,.7)}
+.sidebar{
+  position:fixed;
+  top:0;
+  right:0;
+  height:100%;
+  width:min(92vw, var(--sidebar-w));
+  z-index:25;
+  transform: translateX(110%);
+  transition: transform .18s ease;
+  padding: 10px;
+  background: transparent;
+}
+
+.sidebar-inner{
+  height:100%;
+  overflow:auto;
+  padding:14px;
+  background:rgba(18,26,51,.92);
+  border:1px solid var(--border);
+  border-radius: 18px 0 0 18px;
+  box-shadow: var(--shadow);
+}
+
+.sidebar-title{
+  font-weight:800;
+  color:#f2f6ff;
+  margin:2px 0 10px;
+}
+
+.sidebar-actions{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap:10px;
+  margin-bottom:14px;
+}
+
+.sidebar-stack{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.sidebar-backdrop{
+  display:block;
+  position:fixed;
+  inset:0;
+  z-index:20;
+  background: rgba(0,0,0,.45);
+  opacity:0;
+  pointer-events:none;
+  transition: opacity .18s ease;
+}
+
+/* Open state */
+body.sidebar-open .sidebar{ transform: translateX(0); }
+body.sidebar-open .sidebar-backdrop{
+  opacity:1;
+  pointer-events:auto;
+}
 
 /* =========================
    Filters / controls
@@ -151,7 +201,7 @@ html, body { overflow-x: hidden; }
   flex-direction:column;
   gap:6px;
   min-width:170px;
-  flex: 1 1 170px; /* wrap nicely */
+  flex: 1 1 170px;
 }
 
 label{font-size:12px; color:var(--muted)}
@@ -166,7 +216,7 @@ select,input{
   width:100%;
 }
 
-input{min-width:0} /* prevent overflow on mobile */
+input{min-width:0}
 
 /* Dropdown options (fix white-on-white) */
 select option {
@@ -212,8 +262,30 @@ select option:checked {
   border-color:rgba(124,58,237,.6);
 }
 
+/* segmented */
+.segmented{display:inline-flex; gap:8px}
+.btn-sm{
+  padding:8px 10px;
+  border-radius:999px;
+  font-size:12px;
+  min-height:36px;
+}
+.btn.active{
+  background:rgba(124,58,237,.35);
+  border-color:rgba(124,58,237,.6);
+}
+
 /* =========================
-   Tables (REAL mobile horizontal scroll)
+   KPIs
+   ========================= */
+
+.kpi{padding:14px}
+.kpi-label{color:var(--muted); font-size:12px}
+.kpi-value{font-size:28px; font-weight:800; margin:6px 0 2px}
+.kpi-help{font-size:12px; color:rgba(232,238,252,.7)}
+
+/* =========================
+   Tables
    ========================= */
 
 .table-wrap{
@@ -424,66 +496,36 @@ canvas{
   .charts-grid,.tables-grid{grid-template-columns:1fr}
   .split{grid-template-columns:1fr; min-height:auto}
   .list{max-height: 320px}
+
+  :root{ --sidebar-w: 320px; }
 }
 
-/* HERE is the actual fix: grid + compact KPI cards on mobile */
 @media (max-width:768px){
-  .topbar{
-    flex-direction:column;
-    align-items:stretch;
-    padding:12px 12px;
-  }
-  .top-actions{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:10px;
-  }
+  .topbar{ padding:12px 12px; }
 
   .container{margin:14px auto; padding:0 12px}
 
   .card{ padding:12px; border-radius:14px; }
 
-  /* KPI grid: 2 per row */
   .kpi-grid{
     grid-template-columns:repeat(2, minmax(0, 1fr));
     gap:12px;
   }
 
-  /* KPI cards: remove “giant block” feeling */
-  .kpi{
-    padding:12px;                /* was 14 */
-  }
-  .kpi-label{
-    font-size:12px;
-    line-height:1.15;
-  }
-  .kpi-value{
-    font-size:22px;              /* was 28 */
-    line-height:1.05;
-    margin:6px 0 2px;
-    letter-spacing:-.2px;
-  }
-  .kpi-help{
-    font-size:12px;
-    line-height:1.25;
-    margin-top:6px;
-    overflow-wrap:anywhere;
-  }
+  .kpi{ padding:12px; }
+  .kpi-value{ font-size:22px; line-height:1.05; }
+  .kpi-help{ font-size:12px; line-height:1.25; margin-top:6px; overflow-wrap:anywhere; }
 
   .filters-row{ align-items:stretch; gap:10px; }
   .field{ min-width:100%; flex: 1 1 100%; }
 
-  .pill{width: fit-content}
-
-  .list-item{padding:12px}
-  .list-q{font-size:14px}
-
   .list{max-height: 280px}
   .detail{padding:10px}
+
+  :root{ --sidebar-w: 360px; }
 }
 
 @media (max-width:220px){
-  .top-actions{grid-template-columns:1fr}
   .kpi-grid{grid-template-columns:1fr}
   .kpi-value{font-size:22px}
   .list{max-height: 260px}

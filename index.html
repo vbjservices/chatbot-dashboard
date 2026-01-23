@@ -15,193 +15,245 @@
       <div class="logo">🤖</div>
       <div>
         <div class="brand-title">Chatbot Performance</div>
-        <div class="brand-subtitle" id="envLabel">Demo • Mock data</div>
+        <div class="brand-subtitle" id="envLabel">VBJ Services</div>
       </div>
     </div>
 
-    <div class="top-actions">
-      <button class="btn" id="exportBtn">Export CSV</button>
-      <button class="btn btn-primary" id="refreshBtn">Refresh</button>
-    </div>
+    <!-- Toggle always available (desktop + mobile). Fixed via CSS. -->
+    <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Open sidebar" aria-expanded="false">
+      Menu
+    </button>
   </header>
 
   <main class="container">
-    <section class="filters card">
-      <div class="filters-row">
-        <div class="field">
-          <label>Periode</label>
-          <select id="rangeSelect">
-            <option value="7">Laatste 7 dagen</option>
-            <option value="14">Laatste 14 dagen</option>
-            <option value="30" selected>Laatste 30 dagen</option>
-          </select>
+    <!-- Main content only; sidebar is overlay -->
+    <div class="layout">
+      <div class="main">
+        <section class="filters card">
+          <div class="filters-row">
+            <div class="field">
+              <label>Periode</label>
+              <select id="rangeSelect">
+                <option value="7">Laatste 7 dagen</option>
+                <option value="14">Laatste 14 dagen</option>
+                <option value="30" selected>Laatste 30 dagen</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Kanaal</label>
+              <select id="channelSelect">
+                <option value="all" selected>Alle</option>
+                <option value="web">Web widget</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="email">Email</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Type</label>
+              <select id="typeSelect">
+                <option value="all" selected>Alle</option>
+                <option value="product">Product discovery</option>
+                <option value="policy">Beleid (retour/verzending)</option>
+                <option value="general">Algemeen</option>
+                <option value="unknown">Onbekend</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>Zoek</label>
+              <input id="searchInput" placeholder="Zoek in vragen/antwoorden…" />
+            </div>
+          </div>
+        </section>
+
+        <!-- Executive KPIs -->
+        <section class="grid kpi-grid">
+          <div class="kpi card">
+            <div class="kpi-label">Success rate</div>
+            <div class="kpi-value" id="kpiSuccess">—</div>
+            <div class="kpi-help">Succes = antwoord of product match of goede vervolgstap</div>
+          </div>
+
+          <div class="kpi card">
+            <div class="kpi-label">Escalation rate</div>
+            <div class="kpi-value" id="kpiEscalation">—</div>
+            <div class="kpi-help">Doorgestuurd naar mens/support</div>
+          </div>
+
+          <div class="kpi card">
+            <div class="kpi-label">Total Chats</div>
+            <div class="kpi-value" id="kpiConvos">—</div>
+            <div class="kpi-help">Total chats during period</div>
+          </div>
+
+          <div class="kpi card">
+            <div class="kpi-label">Leads captured</div>
+            <div class="kpi-value" id="kpiLeads">—</div>
+            <div class="kpi-help">Contactgegevens achtergelaten</div>
+          </div>
+
+          <div class="kpi card">
+            <div class="kpi-label">Low-confidence answers</div>
+            <div class="kpi-value" id="kpiLowConf">—</div>
+            <div class="kpi-help">Risico: onzekere antwoorden</div>
+          </div>
+
+          <div class="kpi card">
+            <div class="kpi-label">Cost (est.)</div>
+            <div class="kpi-value" id="kpiCost">—</div>
+            <div class="kpi-help">Tokenschatting (demo)</div>
+          </div>
+        </section>
+
+        <!-- Charts -->
+        <section class="grid charts-grid">
+          <div class="card">
+            <div class="card-title">Vandaag: Success rate</div>
+            <div class="donut-wrap">
+              <canvas id="chartTodaySuccess"></canvas>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Conversations per dag</div>
+            <canvas id="chartConvos"></canvas>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Top topics</div>
+            <canvas id="chartTopics"></canvas>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Outcomes</div>
+            <canvas id="chartOutcomes"></canvas>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <div class="card-title" id="latencyTitle">Latency (p95, s)</div>
+              <div class="segmented" role="group" aria-label="Latency mode">
+                <button class="btn btn-sm" id="latencyP95Btn" type="button">P95</button>
+                <button class="btn btn-sm" id="latencyAvgBtn" type="button">Average</button>
+              </div>
+            </div>
+            <canvas id="chartLatency"></canvas>
+          </div>
+        </section>
+
+        <!-- Ops + Training tables -->
+        <section class="grid tables-grid">
+          <div class="card">
+            <div class="card-title">Unanswered / Failed questions</div>
+            <div class="table-wrap">
+              <table class="table" id="failedTable">
+                <thead>
+                  <tr>
+                    <th>Datum</th>
+                    <th>Kanaal</th>
+                    <th>Type</th>
+                    <th>Vraag</th>
+                    <th>Reason</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Escalations (handover queue)</div>
+            <div class="table-wrap">
+              <table class="table" id="escalationTable">
+                <thead>
+                  <tr>
+                    <th>Datum</th>
+                    <th>Kanaal</th>
+                    <th>Vraag</th>
+                    <th>Actie</th>
+                    <th>Lead</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Conversation viewer -->
+        <section class="grid">
+          <div class="card">
+            <div class="card-title">Conversations</div>
+            <div class="split">
+              <div class="list" id="convoList"></div>
+              <div class="detail" id="convoDetail"></div>
+            </div>
+          </div>
+        </section>
+
+        <div class="footer">
+          © Dashboard • Built for internal analytics
         </div>
-
-        <div class="field">
-          <label>Kanaal</label>
-          <select id="channelSelect">
-            <option value="all" selected>Alle</option>
-            <option value="web">Web widget</option>
-            <option value="whatsapp">WhatsApp</option>
-            <option value="email">Email</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label>Type</label>
-          <select id="typeSelect">
-            <option value="all" selected>Alle</option>
-            <option value="product">Product discovery</option>
-            <option value="policy">Beleid (retour/verzending)</option>
-            <option value="general">Algemeen</option>
-            <option value="unknown">Onbekend</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label>Zoek</label>
-          <input id="searchInput" placeholder="Zoek in vragen/antwoorden…" />
-        </div>
       </div>
 
-      <div class="filters-row">
-        <div class="pill" id="versionPill">Version: v1</div>
-        <div class="pill" id="lastUpdatePill">Last update: —</div>
-        <div class="pill status ok" id="statusPill">Status: Running</div>
-        <span id="chatbotPill" class="pill status warn">Chatbot: Loading</span>
-      </div>
-    </section>
+      <!-- RIGHT SIDEBAR (overlay drawer on all sizes) -->
+      <aside class="sidebar" id="sidebar" aria-label="Dashboard sidebar">
+        <div class="sidebar-inner">
+          <div class="sidebar-title">Tools</div>
 
-    <!-- Executive KPIs -->
-    <section class="grid kpi-grid">
-      <div class="kpi card">
-        <div class="kpi-label">Success rate</div>
-        <div class="kpi-value" id="kpiSuccess">—</div>
-        <div class="kpi-help">Succes = antwoord of product match of goede vervolgstap</div>
-      </div>
+          <div class="sidebar-actions">
+            <button class="btn" id="exportBtn" type="button">Export CSV</button>
+            <button class="btn btn-primary" id="refreshBtn" type="button">Refresh</button>
+          </div>
 
-      <div class="kpi card">
-        <div class="kpi-label">Escalation rate</div>
-        <div class="kpi-value" id="kpiEscalation">—</div>
-        <div class="kpi-help">Doorgestuurd naar mens/support</div>
-      </div>
-
-      <div class="kpi card">
-        <div class="kpi-label">Total Chats</div>
-        <div class="kpi-value" id="kpiConvos">—</div>
-        <div class="kpi-help">Total chats during period</div>
-      </div>
-
-      <div class="kpi card">
-        <div class="kpi-label">Leads captured</div>
-        <div class="kpi-value" id="kpiLeads">—</div>
-        <div class="kpi-help">Contactgegevens achtergelaten</div>
-      </div>
-
-      <div class="kpi card">
-        <div class="kpi-label">Low-confidence answers</div>
-        <div class="kpi-value" id="kpiLowConf">—</div>
-        <div class="kpi-help">Risico: onzekere antwoorden</div>
-      </div>
-
-      <div class="kpi card">
-        <div class="kpi-label">Cost (est.)</div>
-        <div class="kpi-value" id="kpiCost">—</div>
-        <div class="kpi-help">Tokenschatting (demo)</div>
-      </div>
-    </section>
-
-    <!-- Charts -->
-    <section class="grid charts-grid">
-      <!-- NEW: Today success ring -->
-      <div class="card">
-        <div class="card-title">Vandaag: Success rate</div>
-        <div class="donut-wrap">
-          <canvas id="chartTodaySuccess"></canvas>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Conversations per dag</div>
-        <canvas id="chartConvos"></canvas>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Top topics</div>
-        <canvas id="chartTopics"></canvas>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Outcomes</div>
-        <canvas id="chartOutcomes"></canvas>
-      </div>
-
-      <!-- Latency header met toggle -->
-      <div class="card">
-        <div class="card-head">
-          <div class="card-title" id="latencyTitle">Latency (p95, s)</div>
-          <div class="segmented" role="group" aria-label="Latency mode">
-            <button class="btn btn-sm" id="latencyP95Btn" type="button">P95</button>
-            <button class="btn btn-sm" id="latencyAvgBtn" type="button">Average</button>
+          <div class="sidebar-title">Overview</div>
+          <div class="sidebar-stack">
+            <div class="pill" id="versionPill">Version: v1</div>
+            <div class="pill" id="lastUpdatePill">Last update: —</div>
+            <div class="pill status ok" id="statusPill">Status: Running</div>
+            <span id="chatbotPill" class="pill status warn">Chatbot: Loading</span>
           </div>
         </div>
-        <canvas id="chartLatency"></canvas>
-      </div>
-    </section>
+      </aside>
 
-    <!-- Ops + Training tables -->
-    <section class="grid tables-grid">
-      <div class="card">
-        <div class="card-title">Unanswered / Failed questions</div>
-        <div class="table-wrap">
-          <table class="table" id="failedTable">
-            <thead>
-              <tr>
-                <th>Datum</th>
-                <th>Kanaal</th>
-                <th>Type</th>
-                <th>Vraag</th>
-                <th>Reason</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Escalations (handover queue)</div>
-        <div class="table-wrap">
-          <table class="table" id="escalationTable">
-            <thead>
-              <tr>
-                <th>Datum</th>
-                <th>Kanaal</th>
-                <th>Vraag</th>
-                <th>Actie</th>
-                <th>Lead</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- Conversation viewer -->
-    <section class="grid">
-      <div class="card">
-        <div class="card-title">Conversations</div>
-        <div class="split">
-          <div class="list" id="convoList"></div>
-          <div class="detail" id="convoDetail"></div>
-        </div>
-      </div>
-    </section>
-
-    <div class="footer">
-      © Dashboard • Built for internal analytics
+      <!-- Backdrop for all sizes -->
+      <div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
     </div>
   </main>
+
+  <script>
+    // Pure layout toggle (keeps app.js/ui.js untouched)
+    (function () {
+      const body = document.body;
+      const btn = document.getElementById("sidebarToggle");
+      const backdrop = document.getElementById("sidebarBackdrop");
+
+      function setExpanded(expanded) {
+        btn.setAttribute("aria-expanded", expanded ? "true" : "false");
+        btn.setAttribute("aria-label", expanded ? "Close sidebar" : "Open sidebar");
+      }
+
+      function closeSidebar() {
+        body.classList.remove("sidebar-open");
+        setExpanded(false);
+      }
+
+      btn.addEventListener("click", () => {
+        body.classList.toggle("sidebar-open");
+        setExpanded(body.classList.contains("sidebar-open"));
+      });
+
+      backdrop.addEventListener("click", closeSidebar);
+
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeSidebar();
+      });
+
+      // default: closed everywhere
+      setExpanded(false);
+    })();
+  </script>
 </body>
 </html>

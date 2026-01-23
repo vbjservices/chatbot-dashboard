@@ -14,4 +14,4 @@ export const DEFAULT_LIMIT = 5000; // pas aan als nodig
 export const REQUEST_TIMEOUT_MS = 12000;
 
 // UI
-export const ENV_LABEL = "Live • Supabase";
+export const ENV_LABEL = "VBJ Services";
