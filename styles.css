@@ -91,7 +91,7 @@ html, body { overflow-x: hidden; }
   color:#f2f6ff;
 }
 
-/* ✅ nieuw: header voor title + controls */
+/* nieuw: header voor title + controls */
 .card-head{
   display:flex;
   align-items:center;
@@ -103,7 +103,7 @@ html, body { overflow-x: hidden; }
   margin:2px 0; /* laat de header zelf de spacing bepalen */
 }
 
-/* ✅ nieuw: segmented buttons */
+/* nieuw: segmented buttons */
 .segmented{
   display:inline-flex;
   gap:8px;

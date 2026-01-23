@@ -209,9 +209,9 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
 
   /*
     Latency chart (toggle: p95 / avg) in seconds with decimals.
-    ✅ Continuous by day: we use all chat-days (bucketByDay), even if latency missing.
-    ✅ Calculation uses only latency > 0.
-    ✅ If a day has no latency > 0, we still show a point: 0.
+    Continuous by day: we use all chat-days (bucketByDay), even if latency missing.
+    Calculation uses only latency > 0.
+    If a day has no latency > 0, we still show a point: 0.
   */
   const latencyMs = (x) => (x?.metrics?.latency_ms ?? x?.latency_ms);
 
@@ -554,7 +554,7 @@ function fromISODateKeyToDMY(key) {
 }
 
 /*
-  ✅ Continuous latency buckets:
+  Continuous latency buckets:
   - labels: all days that have chats (same as bucketByDay)
   - calc uses only latency > 0
   - if day has no latency>0, return 0 (to still draw a point)
@@ -571,7 +571,7 @@ function bucketP95ByDaySecondsContinuous(items, valueFnMs) {
     const key = toISODateKey(new Date(iso));
 
     const vMs = Number(valueFnMs(x));
-    if (!Number.isFinite(vMs) || vMs <= 0) continue; // ✅ only latency > 0 counts
+    if (!Number.isFinite(vMs) || vMs <= 0) continue; // only latency > 0 counts
 
     const vSec = vMs / 1000;
     if (!valsByKey.has(key)) valsByKey.set(key, []);
@@ -580,7 +580,7 @@ function bucketP95ByDaySecondsContinuous(items, valueFnMs) {
 
   const p95s = dayInfo.keys.map((k) => {
     const arr = valsByKey.get(k) || [];
-    if (!arr.length) return 0; // ✅ day exists but no latency => show 0 point
+    if (!arr.length) return 0; // day exists but no latency => show 0 point
     return percentile(arr, 95);
   });
 
@@ -598,7 +598,7 @@ function bucketAvgByDaySecondsContinuous(items, valueFnMs) {
     const key = toISODateKey(new Date(iso));
 
     const vMs = Number(valueFnMs(x));
-    if (!Number.isFinite(vMs) || vMs <= 0) continue; // ✅ only latency > 0 counts
+    if (!Number.isFinite(vMs) || vMs <= 0) continue; // only latency > 0 counts
 
     const vSec = vMs / 1000;
     if (!aggByKey.has(key)) aggByKey.set(key, { sum: 0, n: 0 });
@@ -609,7 +609,7 @@ function bucketAvgByDaySecondsContinuous(items, valueFnMs) {
 
   const avgs = dayInfo.keys.map((k) => {
     const agg = aggByKey.get(k);
-    if (!agg || !agg.n) return 0; // ✅ day exists but no latency => show 0 point
+    if (!agg || !agg.n) return 0; // day exists but no latency => show 0 point
     return agg.sum / agg.n;
   });
 

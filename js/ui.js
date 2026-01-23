@@ -13,7 +13,7 @@ export function setStatusPill(status, detail = "") {
   el.textContent = detail ? `Status: ${status} (${detail})` : `Status: ${status}`;
 }
 
-/* ✅ NEW: Chatbot pill */
+/* NEW: Chatbot pill */
 export function setChatbotPill(status, detail = "") {
   const el = document.getElementById("chatbotPill");
   if (!el) return;
