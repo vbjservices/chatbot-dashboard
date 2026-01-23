@@ -209,15 +209,16 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
 
   /*
     Latency chart (toggle: p95 / avg) in seconds with decimals.
-    Reads latency from metrics.latency_ms or latency_ms, converts ms -> s.
-    Tooltip formatting is applied only to the latency chart.
+    ✅ Continuous by day: we use all chat-days (bucketByDay), even if latency missing.
+    ✅ Calculation uses only latency > 0.
+    ✅ If a day has no latency > 0, we still show a point: 0.
   */
   const latencyMs = (x) => (x?.metrics?.latency_ms ?? x?.latency_ms);
 
   const series =
     (latencyMode === "avg")
-      ? bucketAvgByDaySeconds(items, latencyMs)
-      : bucketP95ByDaySeconds(items, latencyMs);
+      ? bucketAvgByDaySecondsContinuous(items, latencyMs)
+      : bucketP95ByDaySecondsContinuous(items, latencyMs);
 
   const latencyLabel = latencyMode === "avg" ? "Latency avg (s)" : "Latency p95 (s)";
   const latencyData = latencyMode === "avg" ? series.avgs : series.p95s;
@@ -242,7 +243,7 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
         pointHoverBackgroundColor: "rgba(225, 0, 255, 1)",
         pointHoverBorderColor: "rgba(0,0,0,.55)",
 
-        spanGaps: true,
+        spanGaps: false, // we want explicit points (0) instead of gaps
         fill: true,
 
         // Purple gradient using theme accent
@@ -250,7 +251,7 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
         backgroundColor: (ctx) => areaFillGradient(ctx.chart.ctx, theme.accent),
       }],
     },
-    options: lineOptsWithLatencySeconds(theme, { yTitle: "s", spanGaps: true }),
+    options: lineOptsWithLatencySeconds(theme, { yTitle: "s", spanGaps: false, beginAtZero: true }),
   });
 }
 
@@ -289,7 +290,7 @@ function baseScale(theme, { yTitle = "", beginAtZero = false } = {}) {
   };
 }
 
-function lineOpts(theme, { yTitle = "", spanGaps = false } = {}) {
+function lineOpts(theme, { yTitle = "", spanGaps = false, beginAtZero = false } = {}) {
   return {
     responsive: true,
     maintainAspectRatio: false,
@@ -299,12 +300,12 @@ function lineOpts(theme, { yTitle = "", spanGaps = false } = {}) {
       legend: { display: false },
       tooltip: tooltipOpts(theme),
     },
-    scales: baseScale(theme, { yTitle }),
+    scales: baseScale(theme, { yTitle, beginAtZero }),
   };
 }
 
-function lineOptsWithLatencySeconds(theme, { yTitle = "s", spanGaps = false } = {}) {
-  const opts = lineOpts(theme, { yTitle, spanGaps });
+function lineOptsWithLatencySeconds(theme, { yTitle = "s", spanGaps = false, beginAtZero = true } = {}) {
+  const opts = lineOpts(theme, { yTitle, spanGaps, beginAtZero });
 
   // Latency-only tooltip formatting
   const base = tooltipOpts(theme);
@@ -532,61 +533,7 @@ function bucketByDay(items) {
 
   const keys = Array.from(map.keys()).sort();
   const labels = keys.map(fromISODateKeyToDMY);
-  return { labels, counts: keys.map(k => map.get(k).count) };
-}
-
-function bucketP95ByDaySeconds(items, valueFnMs) {
-  const map = new Map();
-
-  for (const x of items) {
-    const iso = x.updated_at || x.created_at;
-    if (!iso) continue;
-
-    const d = new Date(iso);
-    const key = toISODateKey(d);
-
-    const vMs = Number(valueFnMs(x));
-    if (!Number.isFinite(vMs)) continue;
-
-    const vSec = vMs / 1000;
-    if (!map.has(key)) map.set(key, []);
-    map.get(key).push(vSec);
-  }
-
-  const keys = Array.from(map.keys()).sort();
-  const labels = keys.map(fromISODateKeyToDMY);
-  const p95s = keys.map(k => percentile(map.get(k), 95));
-  return { labels, p95s };
-}
-
-function bucketAvgByDaySeconds(items, valueFnMs) {
-  const map = new Map();
-
-  for (const x of items) {
-    const iso = x.updated_at || x.created_at;
-    if (!iso) continue;
-
-    const d = new Date(iso);
-    const key = toISODateKey(d);
-
-    const vMs = Number(valueFnMs(x));
-    if (!Number.isFinite(vMs)) continue;
-
-    const vSec = vMs / 1000;
-    if (!map.has(key)) map.set(key, { sum: 0, n: 0 });
-    const agg = map.get(key);
-    agg.sum += vSec;
-    agg.n += 1;
-  }
-
-  const keys = Array.from(map.keys()).sort();
-  const labels = keys.map(fromISODateKeyToDMY);
-  const avgs = keys.map(k => {
-    const { sum, n } = map.get(k);
-    return n ? (sum / n) : null;
-  });
-
-  return { labels, avgs };
+  return { keys, labels, counts: keys.map(k => map.get(k).count) };
 }
 
 function toISODateKey(d) {
@@ -604,6 +551,69 @@ function fromISODateKeyToDMY(key) {
   const mm = m[2];
   const yyyy = m[1];
   return `${dd}/${mm}/${yyyy}`;
+}
+
+/*
+  ✅ Continuous latency buckets:
+  - labels: all days that have chats (same as bucketByDay)
+  - calc uses only latency > 0
+  - if day has no latency>0, return 0 (to still draw a point)
+*/
+
+function bucketP95ByDaySecondsContinuous(items, valueFnMs) {
+  const dayInfo = bucketByDay(items); // { keys, labels, counts }
+  const valsByKey = new Map();
+
+  for (const x of items) {
+    const iso = x.updated_at || x.created_at;
+    if (!iso) continue;
+
+    const key = toISODateKey(new Date(iso));
+
+    const vMs = Number(valueFnMs(x));
+    if (!Number.isFinite(vMs) || vMs <= 0) continue; // ✅ only latency > 0 counts
+
+    const vSec = vMs / 1000;
+    if (!valsByKey.has(key)) valsByKey.set(key, []);
+    valsByKey.get(key).push(vSec);
+  }
+
+  const p95s = dayInfo.keys.map((k) => {
+    const arr = valsByKey.get(k) || [];
+    if (!arr.length) return 0; // ✅ day exists but no latency => show 0 point
+    return percentile(arr, 95);
+  });
+
+  return { labels: dayInfo.labels, p95s };
+}
+
+function bucketAvgByDaySecondsContinuous(items, valueFnMs) {
+  const dayInfo = bucketByDay(items); // { keys, labels, counts }
+  const aggByKey = new Map();
+
+  for (const x of items) {
+    const iso = x.updated_at || x.created_at;
+    if (!iso) continue;
+
+    const key = toISODateKey(new Date(iso));
+
+    const vMs = Number(valueFnMs(x));
+    if (!Number.isFinite(vMs) || vMs <= 0) continue; // ✅ only latency > 0 counts
+
+    const vSec = vMs / 1000;
+    if (!aggByKey.has(key)) aggByKey.set(key, { sum: 0, n: 0 });
+    const agg = aggByKey.get(key);
+    agg.sum += vSec;
+    agg.n += 1;
+  }
+
+  const avgs = dayInfo.keys.map((k) => {
+    const agg = aggByKey.get(k);
+    if (!agg || !agg.n) return 0; // ✅ day exists but no latency => show 0 point
+    return agg.sum / agg.n;
+  });
+
+  return { labels: dayInfo.labels, avgs };
 }
 
 function percentile(values, p) {
