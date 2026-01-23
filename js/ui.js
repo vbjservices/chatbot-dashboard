@@ -52,7 +52,7 @@ export function setKPI(id, value) {
  * Conversation list:
  * - Vraag (User) boven
  * - Meta onder
- * - Badge rechts: STATUS VAN LAATSTE ASSISTANT ANTWOORD
+ * - Badges rechts: status(sen) van gesprek (max 3)
  */
 export function renderConversationList(conversations, activeId, onSelect) {
   const root = document.getElementById("convoList");
@@ -82,7 +82,7 @@ export function renderConversationList(conversations, activeId, onSelect) {
     const site = c.workspace_id || c.site || c.channel || "—";
     const typeTopic = formatTypeTopic(c);
 
-    const lastSt = lastAssistantStatus(c);
+    const badges = getConversationBadges(c, 3);
 
     const qDiv = document.createElement("div");
     qDiv.className = "list-q";
@@ -92,7 +92,9 @@ export function renderConversationList(conversations, activeId, onSelect) {
     top.className = "list-top";
     top.innerHTML = `
       <span>${escapeHTML(`${when} • ${site} • ${typeTopic}`)}</span>
-      <span class="badge ${lastSt.kind}">${escapeHTML(lastSt.text)}</span>
+      <span style="display:inline-flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+        ${badgesToHTML(badges, 3)}
+      </span>
     `;
 
     item.appendChild(qDiv);
@@ -106,7 +108,8 @@ export function renderConversationList(conversations, activeId, onSelect) {
 /**
  * Conversation detail:
  * - tokens/cost bovenaan
- * - per message bubble een status-chip (Success / Failed / Support)
+ * - per message bubble max 3 status-badges
+ * - bubble kleur: alleen failed -> rood, anders groen (default)
  */
 export function renderConversationDetail(convo) {
   const root = document.getElementById("convoDetail");
@@ -125,8 +128,7 @@ export function renderConversationDetail(convo) {
   // messages: verwacht newest->oldest (jij sorteert dit in normalize)
   const msgs = Array.isArray(convo.messages) ? convo.messages : [];
 
-  // Conversation status badges ook baseren op LAATSTE Assistant
-  const lastSt = lastAssistantStatus(convo);
+  const headBadges = getConversationBadges(convo, 3);
 
   root.innerHTML = `
     <div class="detail-head">
@@ -141,8 +143,7 @@ export function renderConversationDetail(convo) {
       </div>
 
       <div class="detail-badges">
-        ${badge(lastSt.text, lastSt.kind)}
-        ${badge(convo.outcome?.lead ? "Lead" : "—", convo.outcome?.lead ? "ok" : "muted")}
+        ${badgesToHTML(headBadges, 3)}
       </div>
     </div>
 
@@ -256,7 +257,8 @@ function renderMsgWithStatus(m) {
   const at = m?.at ? fmtDateTime(m.at) : "—";
   const content = m?.content || "";
 
-  const st = inferMessageStatus(m);
+  const badges = getMessageBadges(m, 3);
+  const isFailedAssistant = role === "assistant" && badges.some(b => b.text === "Failed");
 
   const cls =
     role === "user"
@@ -265,92 +267,152 @@ function renderMsgWithStatus(m) {
       ? "msg bot"
       : "msg system";
 
-  const chip = st?.text
-    ? `<span class="badge ${st.kind}">${escapeHTML(st.text)}</span>`
-    : `<span class="badge muted">—</span>`;
+  // Alleen failed => bubble rood (geen extra kleurcodes verder)
+  const inlineStyle = isFailedAssistant
+    ? ` style="background:linear-gradient(180deg, rgba(239,68,68,0.16), rgba(10,14,28,0.55)); border-color:rgba(239,68,68,0.35);"`
+    : "";
+
+  const chip =
+    role === "assistant"
+      ? badgesToHTML(badges, 3) || `<span class="badge muted">—</span>`
+      : `<span class="badge muted"> Question </span>`;
 
   return `
-    <div class="${cls}">
+    <div class="${cls}"${inlineStyle}>
       <div class="meta">
         <span>${escapeHTML(roleLabel)} • ${escapeHTML(at)}</span>
-        ${chip}
+        <span style="display:inline-flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+          ${chip}
+        </span>
       </div>
       <div class="content">${escapeHTML(content)}</div>
     </div>
   `;
 }
 
-function inferMessageStatus(m) {
-  const role = normalizeRole(m?.role);
+/* =========================
+   Status logic (multi-badge, max 3)
+   ========================= */
 
-  const escalated = m?.escalated === true;
-  const success = m?.success === true;
-  const failed = m?.failed === true;
+function getConversationBadges(convo, max = 3) {
+  // Prefer conversation-level outcome flags (deze kunnen gecombineerd zijn)
+  const o = convo?.outcome || {};
+  const hasOutcomeFlags =
+    o &&
+    (o.success === true || o.escalated === true || o.lead === true || o.reason);
 
-  if (escalated) return { kind: "warn", text: "Support" };
-  if (success) return { kind: "ok", text: "Success" };
-  if (failed) return { kind: "bad", text: "Failed" };
-
-  const reason = String(m?.reason || "").toLowerCase();
-  if (role === "assistant") {
-    if (reason.includes("escalat") || reason.includes("support")) return { kind: "warn", text: "Support" };
-    if (reason.includes("fallback") || reason.includes("failed") || reason.includes("no product")) return { kind: "bad", text: "Failed" };
+  if (hasOutcomeFlags) {
+    const failed = o.success === false && !!(o.reason || convo?._turns);
+    return buildBadges({
+      failed,
+      escalated: o.escalated === true,
+      lead: o.lead === true,
+      success: o.success === true,
+    }).slice(0, max) || [{ kind: "muted", text: "Unknown" }];
   }
 
+  // Fallback: kijk naar laatste assistant message
+  const msgs = Array.isArray(convo?.messages) ? convo.messages : [];
+  const lastAssistant = msgs.find(m => normalizeRole(m?.role) === "assistant");
+  if (lastAssistant) {
+    const b = getMessageBadges(lastAssistant, max);
+    return b.length ? b.slice(0, max) : [{ kind: "muted", text: "Unknown" }];
+  }
+
+  return [{ kind: "muted", text: "Unknown" }];
+}
+
+function getMessageBadges(m, max = 3) {
+  const role = normalizeRole(m?.role);
+  if (role !== "assistant" && role !== "system") return [];
+
+  // Hard flags (nieuwste waarheid)
+  const escalatedFlag = m?.escalated === true;
+  const leadFlag = m?.lead === true;
+  const successFlag = m?.success === true;
+
+  // Failed is expliciet (oude data) of success === false
+  const failedFlag =
+    m?.failed === true ||
+    m?.success === false ||
+    String(m?.reason || "").toLowerCase().includes("no answer") ||
+    String(m?.reason || "").toLowerCase().includes("unanswered");
+
+  // Als er flags aanwezig zijn: geen content-heuristiek nodig
+  const hasAnyFlag = escalatedFlag || leadFlag || successFlag || failedFlag;
+  if (hasAnyFlag) {
+    return buildBadges({
+      failed: failedFlag,
+      escalated: escalatedFlag,
+      lead: leadFlag,
+      success: successFlag,
+    }).slice(0, max);
+  }
+
+  // Fallback heuristiek (oud gedrag behouden)
+  const reason = String(m?.reason || "").toLowerCase();
   const text = String(m?.content || "");
   const t = text.toLowerCase();
 
-  if (role === "assistant" || role === "system") {
-    if (
-      t.includes("info@") ||
-      t.includes("klantenservice") ||
-      t.includes("customer service") ||
-      t.includes("verkoop") ||
-      /\+?\d[\d\s()-]{6,}/.test(t)
-    ) return { kind: "warn", text: "Support" };
+  const escalated =
+    reason.includes("escalat") ||
+    reason.includes("support") ||
+    t.includes("info@") ||
+    t.includes("klantenservice") ||
+    t.includes("customer service") ||
+    t.includes("verkoop") ||
+    /\+?\d[\d\s()-]{6,}/.test(t);
 
-    const isFallback =
-      t.includes("ik weet het niet") ||
-      t.includes("dat kan ik niet") ||
-      t.includes("niet genoeg informatie") ||
-      t.includes("ik begrijp je vraag niet");
+  const fallback =
+    reason.includes("fallback") ||
+    reason.includes("failed") ||
+    reason.includes("no product") ||
+    t.includes("ik weet het niet") ||
+    t.includes("dat kan ik niet") ||
+    t.includes("niet genoeg informatie") ||
+    t.includes("ik begrijp je vraag niet");
 
-    if (isFallback) return { kind: "bad", text: "Failed" };
+  const hasLink = /https?:\/\/\S+/i.test(text);
+  const hasNext =
+    t.includes("?") &&
+    (t.includes("artikel") ||
+      t.includes("maat") ||
+      t.includes("kleur") ||
+      t.includes("formaat") ||
+      t.includes("kun je") ||
+      t.includes("kunt u") ||
+      t.includes("wil je"));
 
-    const hasLink = /https?:\/\/\S+/i.test(text);
-    const hasNext =
-      t.includes("?") &&
-      (t.includes("artikel") ||
-        t.includes("maat") ||
-        t.includes("kleur") ||
-        t.includes("formaat") ||
-        t.includes("kun je") ||
-        t.includes("kunt u") ||
-        t.includes("wil je"));
+  const success = (hasLink || hasNext) && !fallback && !escalated;
+  const failed = fallback;
 
-    if (hasLink || hasNext) return { kind: "ok", text: "Success" };
-
-    return { kind: "muted", text: "Unknown" };
-  }
-
-  return { kind: "muted", text: "User" };
+  const badges = buildBadges({ failed, escalated, lead: false, success });
+  return badges.length ? badges.slice(0, max) : [{ kind: "muted", text: "Unknown" }];
 }
 
-function lastAssistantStatus(convo) {
-  const msgs = Array.isArray(convo?.messages) ? convo.messages : [];
-  const lastAssistant = msgs.find(m => normalizeRole(m?.role) === "assistant");
+function buildBadges({ failed = false, escalated = false, lead = false, success = false } = {}) {
+  // Prioriteit: Failed (rood) > Support (oranje) > Lead (groen) > Success (groen)
+  const out = [];
+  const seen = new Set();
 
-  if (lastAssistant) {
-    const st = inferMessageStatus(lastAssistant);
-    if (st?.text === "User") return { kind: "muted", text: "Unknown" };
-    return st || { kind: "muted", text: "Unknown" };
-  }
+  const push = (kind, text) => {
+    if (seen.has(text)) return;
+    seen.add(text);
+    out.push({ kind, text });
+  };
 
-  const o = convo?.outcome || {};
-  if (o.escalated) return { kind: "warn", text: "Support" };
-  if (o.success) return { kind: "ok", text: "Success" };
-  if (o.reason) return { kind: "bad", text: "Failed" };
-  return { kind: "muted", text: "Unknown" };
+  if (failed) push("bad", "Failed");
+  if (escalated) push("warn", "Support");
+  if (lead) push("ok", "Lead");
+  if (success) push("ok", "Success");
+
+  return out;
+}
+
+function badgesToHTML(badges, max = 3) {
+  const arr = Array.isArray(badges) ? badges.slice(0, max) : [];
+  if (!arr.length) return "";
+  return arr.map(b => badge(b.text, b.kind)).join("");
 }
 
 /* =========================
