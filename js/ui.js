@@ -13,6 +13,21 @@ export function setStatusPill(status, detail = "") {
   el.textContent = detail ? `Status: ${status} (${detail})` : `Status: ${status}`;
 }
 
+/* ✅ NEW: Chatbot pill */
+export function setChatbotPill(status, detail = "") {
+  const el = document.getElementById("chatbotPill");
+  if (!el) return;
+
+  el.classList.remove("ok", "warn", "bad");
+
+  // We support: Running/Down/Loading/Unknown
+  if (status === "Running") el.classList.add("ok");
+  else if (status === "Down") el.classList.add("bad");
+  else el.classList.add("warn");
+
+  el.textContent = detail ? `Chatbot: ${status} (${detail})` : `Chatbot: ${status}`;
+}
+
 export function setEnvLabel(text) {
   const el = document.getElementById("envLabel");
   if (el) el.textContent = text;

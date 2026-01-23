@@ -1,10 +1,11 @@
 // app.js
 import { ENV_LABEL } from "./config.js";
 import { readCache, writeCache, buildCacheMeta } from "./storage.js";
-import { fetchSupabaseRows } from "./supabase.js";
+import { fetchSupabaseRows, fetchChatbotStatus } from "./supabase.js"; // ✅ added
 import { normalizeChatEvent, groupTurnsToConversations } from "./normalize.js";
 import {
   setStatusPill,
+  setChatbotPill, // ✅ added
   setEnvLabel,
   setVersionPill,
   setLastUpdatePill,
@@ -46,6 +47,7 @@ init();
 function init() {
   setEnvLabel(ENV_LABEL);
   setStatusPill("Loading");
+  setChatbotPill("Loading"); // ✅ added
 
   wireUI();
   loadData({ preferNetwork: true });
@@ -55,6 +57,22 @@ function init() {
 
 async function loadData({ preferNetwork = true } = {}) {
   setStatusPill("Loading");
+
+  // ✅ NEW: chatbot_status pill ophalen (best-effort, blokkeert load niet)
+  // Dit werkt ook als chat_events "unrestricted" is en chatbot_status via Data API leesbaar is.
+  (async () => {
+    try {
+      const st = await fetchChatbotStatus({ botId: "chatbot" });
+      if (!st) {
+        setChatbotPill("Unknown");
+        return;
+      }
+      setChatbotPill(st.is_up ? "Running" : "Down");
+    } catch (e) {
+      console.warn("chatbot_status fetch failed:", e);
+      setChatbotPill("Unknown");
+    }
+  })();
 
   const sinceISO = rangeToSinceISO(state.filters.range);
 
@@ -303,9 +321,8 @@ function syncLatencyToggleUI() {
   if (latencyAvgBtn) latencyAvgBtn.classList.toggle("active", state.latencyMode === "avg");
 
   if (latencyTitle) {
-    latencyTitle.textContent = state.latencyMode === "avg"
-      ? "Latency (avg, s)"
-      : "Latency (p95, s)";
+    latencyTitle.textContent =
+      state.latencyMode === "avg" ? "Latency (avg, s)" : "Latency (p95, s)";
   }
 }
 
