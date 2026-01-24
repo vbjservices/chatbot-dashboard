@@ -15,6 +15,9 @@
 
   /* sidebar */
   --sidebar-w: 340px;
+
+  /* overlay */
+  --overlay-w: 860px;
 }
 
 *{box-sizing:border-box}
@@ -60,7 +63,6 @@ html, body { overflow-x: hidden; }
 /* Toggle button: always visible, fixed top-right */
 .sidebar-toggle{
   cursor:pointer;
-  background:rgba(255,255,255,.06);
   border:1px solid var(--border);
   color:var(--text);
   padding:10px 12px;
@@ -217,6 +219,15 @@ select,input{
 }
 
 input{min-width:0}
+
+/* Dashboard overview pills under filters */
+.filters-meta{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+  margin-top:10px;
+}
 
 /* Dropdown options (fix white-on-white) */
 select option {
@@ -473,6 +484,121 @@ canvas{
 }
 
 /* =========================
+   Overlay (chart drilldown)
+   ========================= */
+
+.overlay{
+  position:fixed;
+  inset:0;
+  z-index:60;
+  display:none; /* hidden by default */
+}
+
+.overlay.is-open{
+  display:block;
+}
+
+.overlay-backdrop{
+  position:absolute;
+  inset:0;
+  background: rgba(0,0,0,.55);
+}
+
+.overlay-panel{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform: translate(-50%, -50%);
+  width: min(var(--overlay-w), 92vw);
+  max-height: 86vh;
+  display:flex;
+  flex-direction:column;
+
+  background: rgba(18,26,51,.96);
+  border:1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  overflow:hidden;
+}
+
+.overlay-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  padding:14px 14px 10px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+
+.overlay-kicker{
+  font-size:12px;
+  color:var(--muted);
+  margin-bottom:4px;
+}
+
+#drillOverlayTitle{
+  font-size:16px;
+  font-weight:800;
+  color:#f2f6ff;
+}
+
+.overlay-close{
+  cursor:pointer;
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:10px 12px;
+  border-radius:12px;
+  min-height:40px;
+  background: rgba(255,255,255,.06);
+}
+.overlay-close:hover{ background: rgba(255,255,255,.10); }
+
+.overlay-body{
+  padding:12px 14px 14px;
+  overflow:auto;
+}
+
+.overlay-meta{
+  font-size:12px;
+  color:rgba(232,238,252,.72);
+  margin-bottom:10px;
+}
+
+.overlay-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+/* placeholder item style (we'll render real items in ui.js later) */
+.overlay-item{
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(10,14,28,.45);
+  border-radius:14px;
+  padding:10px 12px;
+}
+
+.overlay-item .t{
+  font-weight:800;
+  margin-bottom:6px;
+}
+.overlay-item .m{
+  font-size:12px;
+  color:rgba(232,238,252,.72);
+}
+.overlay-item .s{
+  margin-top:6px;
+  color:rgba(232,238,252,.92);
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+}
+
+/* prevent background scroll when overlay open */
+body.overlay-open{
+  overflow:hidden;
+}
+
+/* =========================
    Footer
    ========================= */
 
@@ -519,10 +645,24 @@ canvas{
   .filters-row{ align-items:stretch; gap:10px; }
   .field{ min-width:100%; flex: 1 1 100%; }
 
+  .filters-meta{
+    flex-direction:column;
+    align-items:stretch;
+  }
+  .filters-meta .pill{
+    width:100%;
+    text-align:left;
+  }
+
   .list{max-height: 280px}
   .detail{padding:10px}
 
-  :root{ --sidebar-w: 360px; }
+  :root{ --sidebar-w: 360px; --overlay-w: 680px; }
+
+  .overlay-panel{
+    width: 92vw;
+    max-height: 88vh;
+  }
 }
 
 @media (max-width:220px){

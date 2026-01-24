@@ -1,11 +1,11 @@
 // app.js
 import { ENV_LABEL } from "./config.js";
 import { readCache, writeCache, buildCacheMeta } from "./storage.js";
-import { fetchSupabaseRows, fetchChatbotStatus } from "./supabase.js"; // ✅ added
+import { fetchSupabaseRows, fetchChatbotStatus } from "./supabase.js";
 import { normalizeChatEvent, groupTurnsToConversations } from "./normalize.js";
 import {
   setStatusPill,
-  setChatbotPill, // ✅ added
+  setChatbotPill,
   setEnvLabel,
   setVersionPill,
   setLastUpdatePill,
@@ -14,6 +14,9 @@ import {
   renderConversationDetail,
   renderFailedTable,
   renderEscalationTable,
+
+  // NEW (drilldown overlay)
+  openDrilldownOverlay,
 } from "./ui.js";
 import { renderCharts, destroyCharts } from "./charts.js";
 
@@ -47,7 +50,7 @@ init();
 function init() {
   setEnvLabel(ENV_LABEL);
   setStatusPill("Loading");
-  setChatbotPill("Loading"); // ✅ added
+  setChatbotPill("Loading");
 
   wireUI();
   loadData({ preferNetwork: true });
@@ -58,8 +61,7 @@ function init() {
 async function loadData({ preferNetwork = true } = {}) {
   setStatusPill("Loading");
 
-  // ✅ NEW: chatbot_status pill ophalen (best-effort, blokkeert load niet)
-  // Dit werkt ook als chat_events "unrestricted" is en chatbot_status via Data API leesbaar is.
+  // chatbot_status pill ophalen (best-effort, blokkeert load niet)
   (async () => {
     try {
       const st = await fetchChatbotStatus({ botId: "chatbot" });
@@ -185,7 +187,7 @@ function applyFiltersAndRender({ keepSelection = true } = {}) {
   const allowedConvoIds = new Set(state.filteredTurns.map((t) => t.conversation_id));
   state.filteredConvos = state.conversations.filter((c) => allowedConvoIds.has(c.conversation_id));
 
-  // 🔥 FIX: sorteer gesprekken newest-first op updated_at/created_at
+  // sorteer gesprekken newest-first op updated_at/created_at
   state.filteredConvos.sort((a, b) => {
     const ta = a.updated_at || a.created_at || "";
     const tb = b.updated_at || b.created_at || "";
@@ -222,13 +224,15 @@ function applyFiltersAndRender({ keepSelection = true } = {}) {
 
   repopulateFilters();
 
-  const onSelect = (id) => {
+  const selectConversationInMain = (id) => {
     state.selectedId = id || null;
     renderConversationList(state.filteredConvos, state.selectedId, onSelect);
 
     const convo = state.filteredConvos.find((c) => c.conversation_id === state.selectedId);
     renderConversationDetail(convo || null);
   };
+
+  const onSelect = (id) => selectConversationInMain(id);
 
   renderConversationList(state.filteredConvos, state.selectedId, onSelect);
 
@@ -241,13 +245,92 @@ function applyFiltersAndRender({ keepSelection = true } = {}) {
   renderFailedTable(failedTurns);
   renderEscalationTable(escalTurns);
 
-  renderChartsOnly();
+  renderChartsOnly({ onPickConversation: selectConversationInMain });
 }
 
-function renderChartsOnly() {
+function renderChartsOnly({ onPickConversation } = {}) {
   destroyCharts();
-  renderCharts({ turns: state.filteredTurns, latencyMode: state.latencyMode });
+
+  renderCharts({
+    turns: state.filteredTurns,
+    latencyMode: state.latencyMode,
+
+    onDrill: (evt) => {
+      const { kind, key, label } = evt || {};
+      if (!kind) return;
+
+      // 1) Selecteer TURNS (overlay lijst)
+      const turns = drillTurns({ kind, key, label });
+
+      // 2) Resolver zodat accordion volledige conversation messages kan pakken
+      const getConversationById = (id) =>
+        state.filteredConvos.find((c) => c.conversation_id === id) ||
+        state.conversations.find((c) => c.conversation_id === id) ||
+        null;
+
+      // 3) Open overlay
+      openDrilldownOverlay({
+        title: buildDrillTitle({ kind, label }),
+        turns,
+        getConversationById,
+      });
+    },
+  });
+
   syncLatencyToggleUI();
+}
+
+/* ---------------- drilldown helpers (TURNS) ---------------- */
+
+function buildDrillTitle({ kind, label }) {
+  if (kind === "day") return `Chats • ${label || "—"}`;
+  if (kind === "topic") return `Topic • ${label || "—"}`;
+  if (kind === "outcome") return `Outcome • ${label || "—"}`;
+  return `Details • ${label || "—"}`;
+}
+
+function drillTurns({ kind, key, label }) {
+  const turns = state.filteredTurns;
+
+  if (kind === "day") {
+    // key is ISO date: YYYY-MM-DD (komt uit charts.js bucketByDay keys)
+    return turns.filter((t) => {
+      const iso = t.updated_at || t.created_at;
+      if (!iso) return false;
+      return toISODateKey(new Date(iso)) === key;
+    });
+  }
+
+  if (kind === "topic") {
+    const want = String(label || "Overig");
+    return turns.filter((t) => String(t.topic || "Overig") === want);
+  }
+
+  if (kind === "outcome") {
+    const want = String(label || "");
+
+    return turns.filter((t) => {
+      const success = !!(t.success ?? t.outcome?.success);
+      const escal = !!(t.escalated ?? t.outcome?.escalated);
+      const lead = !!(t.lead ?? t.outcome?.lead);
+      const other = !(success || escal || lead);
+
+      if (want === "Success") return success;
+      if (want === "Escalated") return escal;
+      if (want === "Lead") return lead;
+      if (want === "Other") return other;
+      return false;
+    });
+  }
+
+  return [];
+}
+
+function toISODateKey(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 /* ---------------- UI wiring ---------------- */
@@ -321,8 +404,7 @@ function syncLatencyToggleUI() {
   if (latencyAvgBtn) latencyAvgBtn.classList.toggle("active", state.latencyMode === "avg");
 
   if (latencyTitle) {
-    latencyTitle.textContent =
-      state.latencyMode === "avg" ? "Latency (avg, s)" : "Latency (p95, s)";
+    latencyTitle.textContent = state.latencyMode === "avg" ? "Latency (avg, s)" : "Latency (p95, s)";
   }
 }
 

@@ -66,6 +66,13 @@
               <input id="searchInput" placeholder="Zoek in vragen/antwoorden…" />
             </div>
           </div>
+
+          <!-- Dashboard overview pills (unique IDs live here) -->
+          <div class="filters-meta">
+            <div class="pill" id="lastUpdatePill">Last update: —</div>
+            <div class="pill status ok" id="statusPill">Status: Online</div>
+            <span id="chatbotPill" class="pill status warn">Chatbot: Running</span>
+          </div>
         </section>
 
         <!-- Executive KPIs -->
@@ -211,20 +218,45 @@
           <div class="sidebar-title">Overview</div>
           <div class="sidebar-stack">
             <div class="pill" id="versionPill">Version: v1</div>
-            <div class="pill" id="lastUpdatePill">Last update: —</div>
-            <div class="pill status ok" id="statusPill">Status: Running</div>
-            <span id="chatbotPill" class="pill status warn">Chatbot: Loading</span>
           </div>
         </div>
       </aside>
 
-      <!-- Backdrop for all sizes -->
+      <!-- Backdrop for sidebar -->
       <div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
     </div>
   </main>
 
+  <!-- =========================
+       Overlay for chart drilldown
+       ========================= -->
+  <div class="overlay" id="drillOverlay" aria-hidden="true">
+    <div class="overlay-backdrop" id="drillOverlayBackdrop"></div>
+
+    <div class="overlay-panel" role="dialog" aria-modal="true" aria-labelledby="drillOverlayTitle">
+      <div class="overlay-head">
+        <div class="overlay-title">
+          <div class="overlay-kicker">Details</div>
+          <div id="drillOverlayTitle">—</div>
+        </div>
+
+        <button class="overlay-close" id="drillOverlayClose" type="button" aria-label="Close overlay">
+          Close
+        </button>
+      </div>
+
+      <div class="overlay-body">
+        <div class="overlay-meta" id="drillOverlayMeta">—</div>
+        <div class="overlay-list" id="drillOverlayList">
+          <!-- rows injected by ui.js later -->
+          <div class="empty">Geen items.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // Pure layout toggle (keeps app.js/ui.js untouched)
+    // Sidebar toggle (keeps app.js/ui.js untouched)
     (function () {
       const body = document.body;
       const btn = document.getElementById("sidebarToggle");

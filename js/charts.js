@@ -30,8 +30,15 @@ export function upsertChart(canvasId, config) {
 /**
  * renderCharts:
  * Prefer turns (rows). Conversations is supported as fallback.
+ *
+ * NEW: onDrill callback for click on specific charts:
+ * - chartConvos (day)
+ * - chartTopics (topic)
+ * - chartOutcomes (outcome)
+ *
+ * onDrill({ chartId, kind, key, label })
  */
-export function renderCharts({ turns = [], conversations = [], latencyMode = "p95" } = {}) {
+export function renderCharts({ turns = [], conversations = [], latencyMode = "p95", onDrill = null } = {}) {
   const items = (turns && turns.length) ? turns : conversations;
 
   // Theme from CSS variables
@@ -150,7 +157,21 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
         borderWidth: 1,
       }],
     },
-    options: barOpts(theme, { yTitle: "Chats", beginAtZero: true }),
+    options: {
+      ...barOpts(theme, { yTitle: "Chats", beginAtZero: true }),
+      onClick: (event, elements, chart) => {
+        if (typeof onDrill !== "function") return;
+        const el = elements?.[0];
+        if (!el) return;
+
+        const idx = el.index;
+        const key = byDay.keys?.[idx];
+        const label = byDay.labels?.[idx];
+        if (!key) return;
+
+        onDrill({ chartId: "chartConvos", kind: "day", key, label });
+      },
+    },
   });
 
   // Topics
@@ -170,7 +191,20 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
         borderWidth: 1,
       }],
     },
-    options: barOpts(theme, { yTitle: "Aantal" }),
+    options: {
+      ...barOpts(theme, { yTitle: "Aantal" }),
+      onClick: (event, elements, chart) => {
+        if (typeof onDrill !== "function") return;
+        const el = elements?.[0];
+        if (!el) return;
+
+        const idx = el.index;
+        const label = topics.labels?.[idx];
+        if (!label) return;
+
+        onDrill({ chartId: "chartTopics", kind: "topic", key: label, label });
+      },
+    },
   });
 
   // Outcomes
@@ -181,11 +215,13 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
   };
   outcomes.other = Math.max(0, total - (outcomes.success + outcomes.escalated + outcomes.lead));
 
+  const outcomeLabels = ["Success", "Escalated", "Lead", "Other"];
+
   upsertChart("chartOutcomes", {
     type: "bar",
     plugins: basePlugins,
     data: {
-      labels: ["Success", "Escalated", "Lead", "Other"],
+      labels: outcomeLabels,
       datasets: [{
         label: "Outcomes",
         data: [outcomes.success, outcomes.escalated, outcomes.lead, outcomes.other],
@@ -204,7 +240,20 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
         borderWidth: 1,
       }],
     },
-    options: barOpts(theme, { yTitle: "Aantal" }),
+    options: {
+      ...barOpts(theme, { yTitle: "Aantal" }),
+      onClick: (event, elements, chart) => {
+        if (typeof onDrill !== "function") return;
+        const el = elements?.[0];
+        if (!el) return;
+
+        const idx = el.index;
+        const label = outcomeLabels?.[idx];
+        if (!label) return;
+
+        onDrill({ chartId: "chartOutcomes", kind: "outcome", key: label, label });
+      },
+    },
   });
 
   /*
@@ -553,13 +602,6 @@ function fromISODateKeyToDMY(key) {
   return `${dd}/${mm}/${yyyy}`;
 }
 
-/*
-  Continuous latency buckets:
-  - labels: all days that have chats (same as bucketByDay)
-  - calc uses only latency > 0
-  - if day has no valid latency, return 0 (to still draw a point)
-*/
-
 /**
  * Normalize latency to seconds.
  * Accepts either:
@@ -577,7 +619,7 @@ function latencyToSeconds(vRaw) {
 }
 
 function bucketP95ByDaySecondsContinuous(items, valueFnMs) {
-  const dayInfo = bucketByDay(items); // { keys, labels, counts }
+  const dayInfo = bucketByDay(items);
   const valsByKey = new Map();
 
   for (const x of items) {
@@ -587,7 +629,7 @@ function bucketP95ByDaySecondsContinuous(items, valueFnMs) {
     const key = toISODateKey(new Date(iso));
 
     const vSec = latencyToSeconds(valueFnMs(x));
-    if (vSec == null) continue; // only valid latency counts
+    if (vSec == null) continue;
 
     if (!valsByKey.has(key)) valsByKey.set(key, []);
     valsByKey.get(key).push(vSec);
@@ -595,7 +637,7 @@ function bucketP95ByDaySecondsContinuous(items, valueFnMs) {
 
   const p95s = dayInfo.keys.map((k) => {
     const arr = valsByKey.get(k) || [];
-    if (!arr.length) return 0; // day exists but no latency => show 0 point
+    if (!arr.length) return 0;
     return percentile(arr, 95);
   });
 
@@ -603,7 +645,7 @@ function bucketP95ByDaySecondsContinuous(items, valueFnMs) {
 }
 
 function bucketAvgByDaySecondsContinuous(items, valueFnMs) {
-  const dayInfo = bucketByDay(items); // { keys, labels, counts }
+  const dayInfo = bucketByDay(items);
   const aggByKey = new Map();
 
   for (const x of items) {
@@ -613,7 +655,7 @@ function bucketAvgByDaySecondsContinuous(items, valueFnMs) {
     const key = toISODateKey(new Date(iso));
 
     const vSec = latencyToSeconds(valueFnMs(x));
-    if (vSec == null) continue; // only valid latency counts
+    if (vSec == null) continue;
 
     if (!aggByKey.has(key)) aggByKey.set(key, { sum: 0, n: 0 });
     const agg = aggByKey.get(key);
@@ -623,7 +665,7 @@ function bucketAvgByDaySecondsContinuous(items, valueFnMs) {
 
   const avgs = dayInfo.keys.map((k) => {
     const agg = aggByKey.get(k);
-    if (!agg || !agg.n) return 0; // day exists but no latency => show 0 point
+    if (!agg || !agg.n) return 0;
     return agg.sum / agg.n;
   });
 

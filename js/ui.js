@@ -13,14 +13,14 @@ export function setStatusPill(status, detail = "") {
   el.textContent = detail ? `Status: ${status} (${detail})` : `Status: ${status}`;
 }
 
-/* NEW: Chatbot pill */
+/* Chatbot pill */
 export function setChatbotPill(status, detail = "") {
   const el = document.getElementById("chatbotPill");
   if (!el) return;
 
   el.classList.remove("ok", "warn", "bad");
 
-  // We support: Running/Down/Loading/Unknown
+  // Running/Down/Loading/Unknown
   if (status === "Running") el.classList.add("ok");
   else if (status === "Down") el.classList.add("bad");
   else el.classList.add("warn");
@@ -125,7 +125,7 @@ export function renderConversationDetail(convo) {
   const tokens = fmtNum(convo.metrics?.tokens);
   const cost = fmtMoney(convo.metrics?.total_cost);
 
-  // messages: verwacht newest->oldest (jij sorteert dit in normalize)
+  // messages: verwacht newest->oldest
   const msgs = Array.isArray(convo.messages) ? convo.messages : [];
 
   const headBadges = getConversationBadges(convo, 3);
@@ -159,10 +159,10 @@ export function renderConversationDetail(convo) {
 }
 
 /**
- * failedTable HTML heeft kolommen:
+ * failedTable HTML:
  * Datum | Kanaal | Type | Vraag | Reason
  *
- * rows verwacht turns (zoals jouw app.js nu doet)
+ * rows verwacht turns
  */
 export function renderFailedTable(rows) {
   const tbl = document.getElementById("failedTable");
@@ -204,7 +204,7 @@ export function renderFailedTable(rows) {
 }
 
 /**
- * escalationTable HTML heeft kolommen:
+ * escalationTable HTML:
  * Datum | Kanaal | Vraag | Actie | Lead
  */
 export function renderEscalationTable(rows) {
@@ -246,6 +246,256 @@ export function renderEscalationTable(rows) {
   }
 }
 
+/* =========================================================
+   Drilldown overlay (chart click => show TURNS)
+   - Nieuwe flow: lijst met turns voor aangeklikte balk
+   - Klik op rij => accordion open/dicht met hele gesprek (message styling hergebruikt)
+   - Backwards compatible: als conversations worden meegegeven, valt terug op oude lijst
+   ========================================================= */
+
+export function openDrilldownOverlay({
+  title = "Details",
+
+  // NEW API
+  turns = [],
+  getConversationById = null,
+
+  // OLD API (fallback, niet breken)
+  meta = "",
+  conversations = [],
+  onPickConversation,
+} = {}) {
+  const overlay = document.getElementById("drillOverlay");
+  const backdrop = document.getElementById("drillOverlayBackdrop");
+  const closeBtn = document.getElementById("drillOverlayClose");
+  const titleEl = document.getElementById("drillOverlayTitle");
+  const metaEl = document.getElementById("drillOverlayMeta");
+  const listEl = document.getElementById("drillOverlayList");
+
+  if (!overlay || !backdrop || !closeBtn || !titleEl || !metaEl || !listEl) {
+    console.warn("Drilldown overlay DOM ontbreekt in index.html");
+    return;
+  }
+
+  // bind close events once
+  if (!window.__drillOverlayBound) {
+    window.__drillOverlayBound = true;
+    backdrop.addEventListener("click", closeDrilldownOverlay);
+    closeBtn.addEventListener("click", closeDrilldownOverlay);
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeDrilldownOverlay();
+    });
+  }
+
+  titleEl.textContent = title || "Details";
+  listEl.innerHTML = "";
+
+  const rows = Array.isArray(turns) ? turns : [];
+  const hasTurnsMode = rows.length > 0 || (Array.isArray(turns) && !Array.isArray(conversations));
+
+  if (hasTurnsMode) {
+    // NEW: turns + accordion
+    metaEl.textContent = `${rows.length} chats`;
+
+    let expandedKey = null;
+
+    const convoResolver =
+      typeof getConversationById === "function" ? getConversationById : () => null;
+
+    if (!rows.length) {
+      listEl.innerHTML = `<div class="empty">Geen chats voor deze selectie.</div>`;
+    } else {
+      for (const t of rows) {
+        const key = String(
+          t.event_id || t.message_id || `${t.conversation_id || "no"}:${t.created_at || ""}`
+        );
+
+        const question = t.user_message || "(geen vraag)";
+        const when = fmtDateTime(t.updated_at || t.created_at);
+        const channel = t.channel || t.workspace_id || "—";
+        const type = t.type || "—";
+        const topic = t.topic || "—";
+
+        const badges = getTurnBadges(t, 3);
+
+        const wrap = document.createElement("div");
+        wrap.className = "overlay-item";
+        wrap.setAttribute("data-key", key);
+
+        // header (row)
+        const header = document.createElement("div");
+        header.style.display = "flex";
+        header.style.alignItems = "flex-start";
+        header.style.justifyContent = "space-between";
+        header.style.gap = "10px";
+        header.style.cursor = "pointer";
+
+        const left = document.createElement("div");
+        left.style.minWidth = "0";
+        left.innerHTML = `
+          <div class="t">${escapeHTML(truncate(question, 140))}</div>
+          <div class="m">${escapeHTML(`${when} • ${channel} • ${type} / ${topic}`)}</div>
+        `;
+
+        const right = document.createElement("div");
+        right.style.display = "inline-flex";
+        right.style.gap = "6px";
+        right.style.flexWrap = "wrap";
+        right.style.justifyContent = "flex-end";
+        right.innerHTML = badgesToHTML(badges, 3) || `<span class="badge muted">—</span>`;
+
+        header.appendChild(left);
+        header.appendChild(right);
+
+        // collapsible body
+        const body = document.createElement("div");
+        body.style.marginTop = "10px";
+        body.style.display = "none";
+        body.setAttribute("data-drill-body", "1");
+
+        const toggle = () => {
+          const isOpen = expandedKey === key;
+          expandedKey = isOpen ? null : key;
+
+          // close all
+          const allBodies = listEl.querySelectorAll("[data-drill-body='1']");
+          for (const el of allBodies) el.style.display = "none";
+
+          if (expandedKey) {
+            body.style.display = "block";
+            body.innerHTML = renderConversationForTurn(t, convoResolver);
+            wrap.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          } else {
+            body.style.display = "none";
+          }
+        };
+
+        header.addEventListener("click", toggle);
+
+        wrap.appendChild(header);
+        wrap.appendChild(body);
+        listEl.appendChild(wrap);
+      }
+    }
+  } else {
+    // OLD: conversation list (kept intact)
+    metaEl.textContent = meta || "—";
+
+    const convos = Array.isArray(conversations) ? conversations : [];
+
+    if (!convos.length) {
+      listEl.innerHTML = `<div class="empty">Geen gesprekken voor deze selectie.</div>`;
+    } else {
+      for (const c of convos) {
+        const id = stableConvoId(c);
+
+        const question =
+          (c.messages?.find(m => normalizeRole(m.role) === "user")?.content) ||
+          c.user_message ||
+          "(geen vraag)";
+
+        const when = fmtDateTime(c.updated_at || c.created_at);
+        const site = c.workspace_id || c.channel || "—";
+        const typeTopic = formatTypeTopic(c);
+        const badges = getConversationBadges(c, 3);
+
+        const row = document.createElement("div");
+        row.className = "overlay-item";
+
+        row.innerHTML = `
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
+            <div style="min-width:0;">
+              <div class="t">${escapeHTML(truncate(question, 120))}</div>
+              <div class="m">${escapeHTML(`${when} • ${site} • ${typeTopic}`)}</div>
+            </div>
+            <div style="display:inline-flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;">
+              ${badgesToHTML(badges, 3)}
+            </div>
+          </div>
+        `;
+
+        row.addEventListener("click", () => {
+          if (typeof onPickConversation === "function") onPickConversation(id);
+          closeDrilldownOverlay();
+        });
+
+        listEl.appendChild(row);
+      }
+    }
+  }
+
+  // Open
+  overlay.classList.add("is-open");
+  overlay.setAttribute("aria-hidden", "false");
+  document.body.classList.add("overlay-open");
+  closeBtn.focus?.();
+}
+
+export function closeDrilldownOverlay() {
+  const overlay = document.getElementById("drillOverlay");
+  if (!overlay) return;
+  overlay.classList.remove("is-open");
+  overlay.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("overlay-open");
+}
+
+function renderConversationForTurn(turn, convoResolver) {
+  const convoId = turn.conversation_id;
+  const convo = convoId ? convoResolver(convoId) : null;
+
+  // prefer full conversation messages (same as main viewer)
+  const msgs = Array.isArray(convo?.messages) ? convo.messages : buildFallbackMessages(turn);
+
+  const headBadges = convo ? getConversationBadges(convo, 3) : getTurnBadges(turn, 3);
+
+  const header = `
+    <div class="detail-head">
+      <div>
+        <div class="detail-title">${escapeHTML(String(convoId || "—"))}</div>
+        <div class="detail-sub">
+          ${escapeHTML(turn.workspace_id || turn.channel || "—")} •
+          ${escapeHTML(turn.type || "—")} •
+          ${escapeHTML(turn.topic || "—")} •
+          Updated: ${escapeHTML(fmtDateTime(turn.updated_at || turn.created_at))}
+        </div>
+      </div>
+      <div class="detail-badges">
+        ${badgesToHTML(headBadges, 3)}
+      </div>
+    </div>
+  `;
+
+  const messages = `
+    <div class="detail-messages">
+      ${msgs.map(renderMsgWithStatus).join("")}
+    </div>
+  `;
+
+  return `${header}${messages}`;
+}
+
+function buildFallbackMessages(turn) {
+  const created = turn.created_at || turn.updated_at || null;
+  const out = [];
+
+  if (turn.user_message) {
+    out.push({ role: "user", at: created, content: turn.user_message });
+  }
+  if (turn.ai_output) {
+    out.push({
+      role: "assistant",
+      at: created,
+      content: turn.ai_output,
+      success: turn.success ?? turn.outcome?.success,
+      escalated: turn.escalated ?? turn.outcome?.escalated,
+      lead: turn.lead ?? turn.outcome?.lead,
+      reason: turn.reason || turn.outcome?.reason || "",
+      failed: (turn.success ?? turn.outcome?.success) === false,
+    });
+  }
+  return out;
+}
+
 /* =========================
    Message rendering w/ status
    ========================= */
@@ -267,7 +517,7 @@ function renderMsgWithStatus(m) {
       ? "msg bot"
       : "msg system";
 
-  // Alleen failed => bubble rood (geen extra kleurcodes verder)
+  // Alleen failed => bubble rood
   const inlineStyle = isFailedAssistant
     ? ` style="background:linear-gradient(180deg, rgba(239,68,68,0.16), rgba(10,14,28,0.55)); border-color:rgba(239,68,68,0.35);"`
     : "";
@@ -294,8 +544,19 @@ function renderMsgWithStatus(m) {
    Status logic (multi-badge, max 3)
    ========================= */
 
+function getTurnBadges(turn, max = 3) {
+  const success = !!(turn.success ?? turn.outcome?.success);
+  const escalated = !!(turn.escalated ?? turn.outcome?.escalated);
+  const lead = !!(turn.lead ?? turn.outcome?.lead);
+
+  const failed = (turn.success ?? turn.outcome?.success) === false;
+
+  const badges = buildBadges({ failed, escalated, lead, success });
+  return badges.length ? badges.slice(0, max) : [{ kind: "muted", text: "Unknown" }];
+}
+
 function getConversationBadges(convo, max = 3) {
-  // Prefer conversation-level outcome flags (deze kunnen gecombineerd zijn)
+  // Prefer conversation-level outcome flags (kunnen gecombineerd zijn)
   const o = convo?.outcome || {};
   const hasOutcomeFlags =
     o &&
@@ -303,12 +564,14 @@ function getConversationBadges(convo, max = 3) {
 
   if (hasOutcomeFlags) {
     const failed = o.success === false && !!(o.reason || convo?._turns);
-    return buildBadges({
-      failed,
-      escalated: o.escalated === true,
-      lead: o.lead === true,
-      success: o.success === true,
-    }).slice(0, max) || [{ kind: "muted", text: "Unknown" }];
+    return (
+      buildBadges({
+        failed,
+        escalated: o.escalated === true,
+        lead: o.lead === true,
+        success: o.success === true,
+      }).slice(0, max) || [{ kind: "muted", text: "Unknown" }]
+    );
   }
 
   // Fallback: kijk naar laatste assistant message
@@ -326,19 +589,18 @@ function getMessageBadges(m, max = 3) {
   const role = normalizeRole(m?.role);
   if (role !== "assistant" && role !== "system") return [];
 
-  // Hard flags (nieuwste waarheid)
+  // Hard flags
   const escalatedFlag = m?.escalated === true;
   const leadFlag = m?.lead === true;
   const successFlag = m?.success === true;
 
-  // Failed is expliciet (oude data) of success === false
+  // Failed expliciet of success === false
   const failedFlag =
     m?.failed === true ||
     m?.success === false ||
     String(m?.reason || "").toLowerCase().includes("no answer") ||
     String(m?.reason || "").toLowerCase().includes("unanswered");
 
-  // Als er flags aanwezig zijn: geen content-heuristiek nodig
   const hasAnyFlag = escalatedFlag || leadFlag || successFlag || failedFlag;
   if (hasAnyFlag) {
     return buildBadges({
@@ -349,7 +611,7 @@ function getMessageBadges(m, max = 3) {
     }).slice(0, max);
   }
 
-  // Fallback heuristiek (oud gedrag behouden)
+  // Fallback heuristiek
   const reason = String(m?.reason || "").toLowerCase();
   const text = String(m?.content || "");
   const t = text.toLowerCase();
@@ -391,7 +653,7 @@ function getMessageBadges(m, max = 3) {
 }
 
 function buildBadges({ failed = false, escalated = false, lead = false, success = false } = {}) {
-  // Prioriteit: Failed (rood) > Support (oranje) > Lead (groen) > Success (groen)
+  // Prioriteit: Failed > Support > Lead > Success
   const out = [];
   const seen = new Set();
 
@@ -455,7 +717,6 @@ function fmtDateTime(iso) {
   if (!iso) return "—";
   try {
     const d = new Date(iso);
-    // nl-NL => dag/maand/jaar
     return d.toLocaleString("nl-NL", {
       day: "2-digit",
       month: "2-digit",
