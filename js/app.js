@@ -1,5 +1,6 @@
 // app.js
-import { ENV_LABEL, SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
+import { ENV_LABEL } from "./config.js";
+import { getConnection, setConnection, hasConnection } from "./connection.js";
 import { readCache, writeCache, buildCacheMeta } from "./storage.js";
 import { fetchSupabaseRows, fetchChatbotStatus } from "./supabase.js";
 import { normalizeChatEvent, groupTurnsToConversations } from "./normalize.js";
@@ -59,26 +60,34 @@ function init() {
 /* ---------------- loading ---------------- */
 
 async function loadData({ preferNetwork = true } = {}) {
-  setStatusPill("Loading");
+  const hasConn = hasConnection();
+  if (hasConn) {
+    setStatusPill("Loading");
+  } else {
+    setStatusPill("Disconnected");
+    setChatbotPill("Unknown");
+  }
 
   // chatbot_status pill ophalen (best-effort, blokkeert load niet)
-  (async () => {
-    try {
-      const st = await fetchChatbotStatus({ botId: "chatbot" });
-      if (!st) {
+  if (hasConn) {
+    (async () => {
+      try {
+        const st = await fetchChatbotStatus({ botId: "chatbot" });
+        if (!st) {
+          setChatbotPill("Unknown");
+          return;
+        }
+        setChatbotPill(st.is_up ? "Online" : "Offline");
+      } catch (e) {
+        console.warn("chatbot_status fetch failed:", e);
         setChatbotPill("Unknown");
-        return;
       }
-      setChatbotPill(st.is_up ? "Online" : "Offline");
-    } catch (e) {
-      console.warn("chatbot_status fetch failed:", e);
-      setChatbotPill("Unknown");
-    }
-  })();
+    })();
+  }
 
   const sinceISO = rangeToSinceISO(state.filters.range);
 
-  if (preferNetwork) {
+  if (preferNetwork && hasConn) {
     try {
       const rows = await fetchSupabaseRows({ sinceISO });
       state.rows = rows || [];
@@ -349,6 +358,7 @@ function wireUI() {
   const connectionSave = document.getElementById("connectionSaveBtn");
   const supabaseUrlInput = document.getElementById("supabaseUrlInput");
   const supabaseKeyInput = document.getElementById("supabaseKeyInput");
+  const rememberConnection = document.getElementById("rememberConnection");
 
   const latencyP95Btn = document.getElementById("latencyP95Btn");
   const latencyAvgBtn = document.getElementById("latencyAvgBtn");
@@ -388,8 +398,10 @@ function wireUI() {
 
   if (connectionBtn && connectionOverlay) {
     const openConnectionOverlay = () => {
-      if (supabaseUrlInput) supabaseUrlInput.value = SUPABASE_URL || "";
-      if (supabaseKeyInput) supabaseKeyInput.value = SUPABASE_ANON_KEY || "";
+      const { url, anonKey, remember } = getConnection();
+      if (supabaseUrlInput) supabaseUrlInput.value = url || "";
+      if (supabaseKeyInput) supabaseKeyInput.value = anonKey || "";
+      if (rememberConnection) rememberConnection.checked = !!remember;
       connectionOverlay.classList.add("is-open");
       connectionOverlay.setAttribute("aria-hidden", "false");
       document.body.classList.add("overlay-open");
@@ -404,10 +416,19 @@ function wireUI() {
       if (!drillOpen) document.body.classList.remove("overlay-open");
     };
 
+    const saveConnection = () => {
+      const url = supabaseUrlInput?.value || "";
+      const anonKey = supabaseKeyInput?.value || "";
+      const remember = !!rememberConnection?.checked;
+      setConnection({ url, anonKey, remember });
+      closeConnectionOverlay();
+      loadData({ preferNetwork: true });
+    };
+
     connectionBtn.addEventListener("click", openConnectionOverlay);
     connectionBackdrop?.addEventListener("click", closeConnectionOverlay);
     connectionClose?.addEventListener("click", closeConnectionOverlay);
-    connectionSave?.addEventListener("click", closeConnectionOverlay);
+    connectionSave?.addEventListener("click", saveConnection);
     window.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeConnectionOverlay();
     });

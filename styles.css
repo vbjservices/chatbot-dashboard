@@ -721,6 +721,68 @@ canvas{
 
 .connection-input::placeholder{ color: rgba(12,26,20,.6); }
 
+.remember-toggle{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-size:13px;
+  font-weight:600;
+  color:#0c1a14;
+  cursor:pointer;
+  user-select:none;
+}
+
+.remember-toggle input{
+  position:absolute;
+  opacity:0;
+  width:1px;
+  height:1px;
+  margin:0;
+  padding:0;
+  border:0;
+  background:transparent;
+}
+
+.remember-track{
+  width:44px;
+  height:24px;
+  border-radius:999px;
+  background: rgba(12,26,20,.2);
+  border:1px solid rgba(12,26,20,.25);
+  position:relative;
+  flex-shrink:0;
+  transition: background .15s ease, border-color .15s ease;
+}
+
+.remember-track::after{
+  content:"";
+  position:absolute;
+  top:2px;
+  left:2px;
+  width:18px;
+  height:18px;
+  border-radius:999px;
+  background:#f7faf8;
+  box-shadow: 0 2px 4px rgba(0,0,0,.25);
+  transition: transform .15s ease;
+}
+
+.remember-toggle input:checked + .remember-track{
+  background: rgba(34,197,94,.6);
+  border-color: rgba(34,197,94,.8);
+}
+
+.remember-toggle input:checked + .remember-track::after{
+  transform: translateX(20px);
+}
+
+.remember-toggle input:focus-visible + .remember-track{
+  outline:2px solid rgba(12,26,20,.6);
+  outline-offset:2px;
+}
+
+.remember-text{ font-size:13px; }
+
 .connection-save{
   align-self:center;
   min-width: 200px;

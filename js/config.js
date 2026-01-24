@@ -8,6 +8,7 @@ export const TABLE_NAME = "chat_events";
 // Cache keys (localStorage)
 export const CACHE_DATA_KEY = "dash_chat_events_cache_v1";
 export const CACHE_META_KEY = "dash_chat_events_cache_meta_v1";
+export const CONNECTION_STORAGE_KEY = "dash_supabase_connection_v1";
 
 // Defaults
 export const DEFAULT_LIMIT = 5000; // pas aan als nodig

@@ -1,16 +1,23 @@
 // supabase.js
 import {
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY,
   TABLE_NAME,
   REQUEST_TIMEOUT_MS,
   DEFAULT_LIMIT,
 } from "./config.js";
+import { getConnection } from "./connection.js";
 
 function withTimeout(signalMs) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), signalMs);
   return { controller, timeout };
+}
+
+function getCredentials() {
+  const { url, anonKey } = getConnection();
+  if (!url || !anonKey) {
+    throw new Error("Missing Supabase credentials");
+  }
+  return { url, anonKey };
 }
 
 /**
@@ -21,7 +28,8 @@ export async function fetchSupabaseRows({ sinceISO = null, limit = DEFAULT_LIMIT
   const { controller, timeout } = withTimeout(REQUEST_TIMEOUT_MS);
 
   try {
-    const url = new URL(`${SUPABASE_URL}/rest/v1/${TABLE_NAME}`);
+    const { url: baseUrl, anonKey } = getCredentials();
+    const url = new URL(`${baseUrl}/rest/v1/${TABLE_NAME}`);
 
     // Selecteer alleen kolommen die we nodig hebben (scheelt payload)
     const select =
@@ -35,8 +43,8 @@ export async function fetchSupabaseRows({ sinceISO = null, limit = DEFAULT_LIMIT
     const res = await fetch(url.toString(), {
       method: "GET",
       headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
         "Content-Type": "application/json",
       },
       signal: controller.signal,
@@ -57,7 +65,8 @@ export async function fetchChatbotStatus({ botId = "chatbot" } = {}) {
   const { controller, timeout } = withTimeout(REQUEST_TIMEOUT_MS);
 
   try {
-    const url = new URL(`${SUPABASE_URL}/rest/v1/chatbot_status`);
+    const { url: baseUrl, anonKey } = getCredentials();
+    const url = new URL(`${baseUrl}/rest/v1/chatbot_status`);
     url.searchParams.set("select", "id,is_up,last_ok_at,last_error_at,last_error,updated_at");
     url.searchParams.set("id", `eq.${botId}`);
     url.searchParams.set("limit", "1");
@@ -65,8 +74,8 @@ export async function fetchChatbotStatus({ botId = "chatbot" } = {}) {
     const res = await fetch(url.toString(), {
       method: "GET",
       headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
         "Content-Type": "application/json",
       },
       signal: controller.signal,
