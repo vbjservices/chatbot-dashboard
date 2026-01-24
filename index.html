@@ -217,6 +217,13 @@
 
           <div class="sidebar-title">Overview</div>
           <div class="sidebar-stack">
+            <button class="connection-btn" id="connectionBtn" type="button">
+              <img class="connection-logo" src="./assets/Supabase_Logo.png" alt="Supabase logo" />
+              <div class="connection-copy">
+                <div class="connection-title">Connection</div>
+                <div class="connection-status warn" id="connectionStatus">Loading</div>
+              </div>
+            </button>
             <div class="pill" id="versionPill">Version: v1</div>
           </div>
         </div>
@@ -251,6 +258,45 @@
           <!-- rows injected by ui.js later -->
           <div class="empty">Geen items.</div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================
+       Overlay for Supabase connection
+       ========================= -->
+  <div class="overlay connection-overlay" id="connectionOverlay" aria-hidden="true">
+    <div class="overlay-backdrop" id="connectionOverlayBackdrop"></div>
+
+    <div class="connection-panel" role="dialog" aria-modal="true" aria-labelledby="connectionOverlayTitle">
+      <div class="connection-head">
+        <div class="connection-title-wrap">
+          <img class="connection-logo-lg" src="./assets/Supabase_Logo.png" alt="Supabase logo" />
+          <div>
+            <div class="connection-kicker">Connection</div>
+            <a
+              id="connectionOverlayTitle"
+              class="connection-link"
+              href="https://supabase.com/dashboard/org"
+              target="_blank"
+              rel="noopener noreferrer"
+            >Supabase account</a>
+          </div>
+        </div>
+
+        <button class="overlay-close" id="connectionOverlayClose" type="button" aria-label="Close connection overlay">
+          Close
+        </button>
+      </div>
+
+      <div class="connection-body">
+        <label class="connection-label" for="supabaseUrlInput">Project URL</label>
+        <input id="supabaseUrlInput" class="connection-input" placeholder="Project URL" />
+
+        <label class="connection-label" for="supabaseKeyInput">Anon key</label>
+        <input id="supabaseKeyInput" class="connection-input" placeholder="Anon key" />
+
+        <button class="btn btn-primary connection-save" id="connectionSaveBtn" type="button">Save</button>
       </div>
     </div>
   </div>

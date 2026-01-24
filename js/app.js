@@ -1,5 +1,5 @@
 // app.js
-import { ENV_LABEL } from "./config.js";
+import { ENV_LABEL, SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 import { readCache, writeCache, buildCacheMeta } from "./storage.js";
 import { fetchSupabaseRows, fetchChatbotStatus } from "./supabase.js";
 import { normalizeChatEvent, groupTurnsToConversations } from "./normalize.js";
@@ -342,6 +342,13 @@ function wireUI() {
   const searchInput = document.getElementById("searchInput");
   const refreshBtn = document.getElementById("refreshBtn");
   const exportBtn = document.getElementById("exportBtn");
+  const connectionBtn = document.getElementById("connectionBtn");
+  const connectionOverlay = document.getElementById("connectionOverlay");
+  const connectionBackdrop = document.getElementById("connectionOverlayBackdrop");
+  const connectionClose = document.getElementById("connectionOverlayClose");
+  const connectionSave = document.getElementById("connectionSaveBtn");
+  const supabaseUrlInput = document.getElementById("supabaseUrlInput");
+  const supabaseKeyInput = document.getElementById("supabaseKeyInput");
 
   const latencyP95Btn = document.getElementById("latencyP95Btn");
   const latencyAvgBtn = document.getElementById("latencyAvgBtn");
@@ -378,6 +385,33 @@ function wireUI() {
 
   if (refreshBtn) refreshBtn.addEventListener("click", () => loadData({ preferNetwork: true }));
   if (exportBtn) exportBtn.addEventListener("click", exportCSV);
+
+  if (connectionBtn && connectionOverlay) {
+    const openConnectionOverlay = () => {
+      if (supabaseUrlInput) supabaseUrlInput.value = SUPABASE_URL || "";
+      if (supabaseKeyInput) supabaseKeyInput.value = SUPABASE_ANON_KEY || "";
+      connectionOverlay.classList.add("is-open");
+      connectionOverlay.setAttribute("aria-hidden", "false");
+      document.body.classList.add("overlay-open");
+      connectionClose?.focus?.();
+    };
+
+    const closeConnectionOverlay = () => {
+      connectionOverlay.classList.remove("is-open");
+      connectionOverlay.setAttribute("aria-hidden", "true");
+      const drill = document.getElementById("drillOverlay");
+      const drillOpen = drill?.classList.contains("is-open");
+      if (!drillOpen) document.body.classList.remove("overlay-open");
+    };
+
+    connectionBtn.addEventListener("click", openConnectionOverlay);
+    connectionBackdrop?.addEventListener("click", closeConnectionOverlay);
+    connectionClose?.addEventListener("click", closeConnectionOverlay);
+    connectionSave?.addEventListener("click", closeConnectionOverlay);
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeConnectionOverlay();
+    });
+  }
 
   if (latencyP95Btn) {
     latencyP95Btn.addEventListener("click", () => {

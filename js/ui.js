@@ -11,6 +11,15 @@ export function setStatusPill(status, detail = "") {
   else el.classList.add("warn");
 
   el.textContent = detail ? `Database: ${status} (${detail})` : `Database: ${status}`;
+
+  const connectionEl = document.getElementById("connectionStatus");
+  if (connectionEl) {
+    connectionEl.classList.remove("ok", "warn", "bad");
+    if (status === "Connected") connectionEl.classList.add("ok");
+    else if (status === "Disconnected") connectionEl.classList.add("bad");
+    else connectionEl.classList.add("warn");
+    connectionEl.textContent = status;
+  }
 }
 
 /* Chatbot pill */
@@ -436,7 +445,9 @@ export function closeDrilldownOverlay() {
   if (!overlay) return;
   overlay.classList.remove("is-open");
   overlay.setAttribute("aria-hidden", "true");
-  document.body.classList.remove("overlay-open");
+  const connectionOverlay = document.getElementById("connectionOverlay");
+  const connectionOpen = connectionOverlay?.classList.contains("is-open");
+  if (!connectionOpen) document.body.classList.remove("overlay-open");
 }
 
 function renderConversationForTurn(turn, convoResolver) {

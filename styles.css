@@ -172,6 +172,43 @@ html, body { overflow-x: hidden; }
   gap:10px;
 }
 
+.connection-btn{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  width:100%;
+  cursor:pointer;
+  padding:10px 12px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.04);
+  color:var(--text);
+  text-align:left;
+}
+.connection-btn:hover{ background:rgba(255,255,255,.07); }
+
+.connection-logo{
+  width:28px;
+  height:28px;
+  border-radius:8px;
+  background:rgba(0,0,0,.25);
+  border:1px solid rgba(255,255,255,.08);
+  object-fit:cover;
+}
+
+.connection-copy{display:flex; flex-direction:column; gap:4px}
+.connection-title{font-weight:700; letter-spacing:.2px}
+.connection-status{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font-size:12px;
+  color:rgba(232,238,252,.82);
+}
+.connection-status.ok{ color:var(--ok); }
+.connection-status.bad{ color:var(--bad); }
+.connection-status.warn{ color:var(--warn); }
+
 .sidebar-backdrop{
   display:block;
   position:fixed;
@@ -591,6 +628,115 @@ canvas{
   color:rgba(232,238,252,.92);
   white-space:pre-wrap;
   overflow-wrap:anywhere;
+}
+
+/* =========================
+   Connection overlay
+   ========================= */
+
+.connection-panel{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform: translate(-50%, -50%);
+  width: min(720px, 92vw);
+  max-height: 86vh;
+  display:flex;
+  flex-direction:column;
+
+  background: linear-gradient(180deg, rgba(190,224,206,.95), rgba(210,235,221,.95));
+  border:1px solid rgba(20,36,30,.25);
+  border-radius: 26px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.35);
+  color:#0c1a14;
+  overflow:hidden;
+}
+
+.connection-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:18px 20px 10px;
+}
+
+.connection-title-wrap{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.connection-logo-lg{
+  width:44px;
+  height:44px;
+  border-radius:10px;
+  background:#0c1312;
+  border:1px solid rgba(0,0,0,.2);
+  object-fit:cover;
+}
+
+.connection-kicker{
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#1c2f26;
+  margin-bottom:4px;
+}
+
+#connectionOverlayTitle{
+  font-size:18px;
+  font-weight:800;
+  text-decoration: underline;
+  color:#0c1a14;
+}
+
+.connection-link{
+  cursor:pointer;
+}
+.connection-link:hover{
+  color:#0a3f2c;
+  text-decoration-thickness: 2px;
+}
+
+.connection-body{
+  padding:10px 20px 20px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.connection-label{
+  font-size:13px;
+  font-weight:700;
+  color:#0c1a14;
+}
+
+.connection-input{
+  background: #f7faf8;
+  border:1px solid rgba(20,36,30,.2);
+  color:#0c1a14;
+  padding:12px 14px;
+  border-radius:16px;
+}
+
+.connection-input::placeholder{ color: rgba(12,26,20,.6); }
+
+.connection-save{
+  align-self:center;
+  min-width: 200px;
+  border-radius:999px;
+  background:rgba(34,197,94,.75);
+  border-color:rgba(34,197,94,.9);
+  color:#0c1a14;
+}
+
+.connection-panel .overlay-close{
+  background: rgba(255,255,255,.7);
+  border-color: rgba(20,36,30,.25);
+  color:#0c1a14;
+}
+.connection-panel .overlay-close:hover{
+  background: rgba(255,255,255,.9);
 }
 
 /* prevent background scroll when overlay open */
