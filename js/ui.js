@@ -6,11 +6,11 @@ export function setStatusPill(status, detail = "") {
 
   el.classList.remove("ok", "warn", "bad");
 
-  if (status === "Online") el.classList.add("ok");
-  else if (status === "Offline") el.classList.add("bad");
+  if (status === "Connected") el.classList.add("ok");
+  else if (status === "Disconnected") el.classList.add("bad");
   else el.classList.add("warn");
 
-  el.textContent = detail ? `Status: ${status} (${detail})` : `Status: ${status}`;
+  el.textContent = detail ? `Database: ${status} (${detail})` : `Database: ${status}`;
 }
 
 /* Chatbot pill */
@@ -20,12 +20,12 @@ export function setChatbotPill(status, detail = "") {
 
   el.classList.remove("ok", "warn", "bad");
 
-  // Running/Down/Loading/Unknown
-  if (status === "Running") el.classList.add("ok");
-  else if (status === "Down") el.classList.add("bad");
+  // Online/Offline/Loading/Unknown
+  if (status === "Online") el.classList.add("ok");
+  else if (status === "Offline") el.classList.add("bad");
   else el.classList.add("warn");
 
-  el.textContent = detail ? `Chatbot: ${status} (${detail})` : `Chatbot: ${status}`;
+  el.textContent = detail ? `Assistent: ${status} (${detail})` : `Assistent: ${status}`;
 }
 
 export function setEnvLabel(text) {

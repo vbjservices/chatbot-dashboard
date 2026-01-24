@@ -69,7 +69,7 @@ async function loadData({ preferNetwork = true } = {}) {
         setChatbotPill("Unknown");
         return;
       }
-      setChatbotPill(st.is_up ? "Running" : "Down");
+      setChatbotPill(st.is_up ? "Online" : "Offline");
     } catch (e) {
       console.warn("chatbot_status fetch failed:", e);
       setChatbotPill("Unknown");
@@ -93,7 +93,7 @@ async function loadData({ preferNetwork = true } = {}) {
         buildCacheMeta({ source: "Supabase", rowCount: state.rows.length, sinceISO })
       );
 
-      setStatusPill("Online");
+      setStatusPill("Connected");
 
       // DD/MM/YYYY HH:MM
       setLastUpdatePill(
@@ -125,7 +125,7 @@ async function loadData({ preferNetwork = true } = {}) {
     state.lastLoadedAt = cached?.meta?.cachedAt || null;
     state.source = cached?.meta?.source || "Cache";
 
-    setStatusPill("Offline", "cached");
+    setStatusPill("Disconnected", "cached");
 
     // DD/MM/YYYY HH:MM
     setLastUpdatePill(
@@ -154,7 +154,7 @@ async function loadData({ preferNetwork = true } = {}) {
   state.filteredConvos = [];
   state.selectedId = null;
 
-  setStatusPill("Offline");
+  setStatusPill("Disconnected");
   setLastUpdatePill("—");
   setVersionPill("—");
 
