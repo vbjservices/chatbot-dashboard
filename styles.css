@@ -309,6 +309,14 @@ select option:checked {
   background:rgba(124,58,237,.35);
   border-color:rgba(124,58,237,.6);
 }
+.btn-danger{
+  background:rgba(239,68,68,.22);
+  border-color:rgba(239,68,68,.55);
+  color:#ffe8e8;
+}
+.btn-danger:hover{
+  background:rgba(239,68,68,.32);
+}
 
 /* segmented */
 .segmented{display:inline-flex; gap:8px}

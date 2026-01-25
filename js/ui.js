@@ -29,12 +29,12 @@ export function setChatbotPill(status, detail = "") {
 
   el.classList.remove("ok", "warn", "bad");
 
-  // Online/Offline/Loading/Unknown
+  // Online/Offline/Loading/Not connected
   if (status === "Online") el.classList.add("ok");
   else if (status === "Offline") el.classList.add("bad");
   else el.classList.add("warn");
 
-  el.textContent = detail ? `Assistent: ${status} (${detail})` : `Assistent: ${status}`;
+  el.textContent = detail ? `Assistant: ${status} (${detail})` : `Assistant: ${status}`;
 }
 
 export function setEnvLabel(text) {
@@ -70,7 +70,7 @@ export function renderConversationList(conversations, activeId, onSelect) {
   root.innerHTML = "";
 
   if (!conversations?.length) {
-    root.innerHTML = `<div class="empty">Geen conversaties gevonden.</div>`;
+    root.innerHTML = `<div class="empty">No conversations found.</div>`;
     return;
   }
 
@@ -125,7 +125,7 @@ export function renderConversationDetail(convo) {
   if (!root) return;
 
   if (!convo) {
-    root.innerHTML = `<div class="empty">Selecteer een gesprek links.</div>`;
+    root.innerHTML = `<div class="empty">Select a conversation on the left.</div>`;
     return;
   }
 
@@ -207,7 +207,7 @@ export function renderFailedTable(rows) {
 
   if (!top.length) {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="5" class="muted">Geen failed conversaties.</td>`;
+    tr.innerHTML = `<td colspan="5" class="muted">No failed conversations.</td>`;
     body.appendChild(tr);
   }
 }
@@ -250,7 +250,7 @@ export function renderEscalationTable(rows) {
 
   if (!top.length) {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="5" class="muted">Geen escalations.</td>`;
+    tr.innerHTML = `<td colspan="5" class="muted">No escalations.</td>`;
     body.appendChild(tr);
   }
 }
@@ -312,7 +312,7 @@ export function openDrilldownOverlay({
       typeof getConversationById === "function" ? getConversationById : () => null;
 
     if (!rows.length) {
-      listEl.innerHTML = `<div class="empty">Geen chats voor deze selectie.</div>`;
+      listEl.innerHTML = `<div class="empty">No chats for this selection.</div>`;
     } else {
       for (const t of rows) {
         const key = String(
@@ -393,7 +393,7 @@ export function openDrilldownOverlay({
     const convos = Array.isArray(conversations) ? conversations : [];
 
     if (!convos.length) {
-      listEl.innerHTML = `<div class="empty">Geen gesprekken voor deze selectie.</div>`;
+      listEl.innerHTML = `<div class="empty">No conversations for this selection.</div>`;
     } else {
       for (const c of convos) {
         const id = stableConvoId(c);

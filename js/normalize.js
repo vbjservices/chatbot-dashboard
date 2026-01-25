@@ -119,7 +119,7 @@ export function groupTurnsToConversations(turns) {
 
         channel: t.channel,
         type: "chat",
-        topic: "Overig",
+        topic: "Other",
         prompt_version: t.bot_key || null,
 
         messages: [],
@@ -200,7 +200,7 @@ export function groupTurnsToConversations(turns) {
     convo.metrics.tokens += numOrZero(t?.metrics?.tokens ?? 0);
     convo.metrics.total_cost += numOrZero(t?.metrics?.total_cost ?? 0);
 
-    if (convo.topic === "Overig") convo.topic = t.topic || "Overig";
+    if (convo.topic === "Other") convo.topic = t.topic || "Other";
   }
 
   const conversations = Array.from(map.values());
@@ -302,8 +302,8 @@ function inferTopic({ products, escalated, user_message, ai_output }) {
   if (escalated) return "Support";
 
   const text = `${user_message || ""}\n${ai_output || ""}`.toLowerCase();
-  if (text.includes("retour")) return "Retour";
-  if (text.includes("verzend")) return "Verzending";
-  if (text.includes("garantie")) return "Garantie";
-  return "Overig";
+  if (text.includes("retour")) return "Returns";
+  if (text.includes("verzend")) return "Shipping";
+  if (text.includes("garantie")) return "Warranty";
+  return "Other";
 }

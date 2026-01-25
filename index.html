@@ -1,5 +1,5 @@
-<!doctype html>
-<html lang="nl">
+﻿<!doctype html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -32,18 +32,18 @@
         <section class="filters card">
           <div class="filters-row">
             <div class="field">
-              <label>Periode</label>
+              <label>Period</label>
               <select id="rangeSelect">
-                <option value="7">Laatste 7 dagen</option>
-                <option value="14">Laatste 14 dagen</option>
-                <option value="30" selected>Laatste 30 dagen</option>
+                <option value="7">Last 7 days</option>
+                <option value="14">Last 14 days</option>
+                <option value="30" selected>Last 30 days</option>
               </select>
             </div>
 
             <div class="field">
-              <label>Kanaal</label>
+              <label>Channel</label>
               <select id="channelSelect">
-                <option value="all" selected>Alle</option>
+                <option value="all" selected>All</option>
                 <option value="web">Web widget</option>
                 <option value="whatsapp">WhatsApp</option>
                 <option value="email">Email</option>
@@ -53,25 +53,25 @@
             <div class="field">
               <label>Type</label>
               <select id="typeSelect">
-                <option value="all" selected>Alle</option>
+                <option value="all" selected>All</option>
                 <option value="product">Product discovery</option>
-                <option value="policy">Beleid (retour/verzending)</option>
-                <option value="general">Algemeen</option>
-                <option value="unknown">Onbekend</option>
+                <option value="policy">Policy (returns/shipping)</option>
+                <option value="general">General</option>
+                <option value="unknown">Unknown</option>
               </select>
             </div>
 
             <div class="field">
-              <label>Zoek</label>
-              <input id="searchInput" placeholder="Zoek in vragen/antwoorden…" />
+              <label>Search</label>
+              <input id="searchInput" placeholder="Search questions/answers..." />
             </div>
           </div>
 
           <!-- Dashboard overview pills (unique IDs live here) -->
           <div class="filters-meta">
-            <div class="pill" id="lastUpdatePill">Last update: —</div>
+            <div class="pill" id="lastUpdatePill">Last update: -</div>
             <div class="pill status ok" id="statusPill">Database: Connected</div>
-            <span id="chatbotPill" class="pill status warn">Assistent: Online</span>
+            <span id="chatbotPill" class="pill status warn">Assistant: Online</span>
           </div>
         </section>
 
@@ -79,52 +79,52 @@
         <section class="grid kpi-grid">
           <div class="kpi card">
             <div class="kpi-label">Success rate</div>
-            <div class="kpi-value" id="kpiSuccess">—</div>
-            <div class="kpi-help">Succes = antwoord of product match of goede vervolgstap</div>
+            <div class="kpi-value" id="kpiSuccess">-</div>
+            <div class="kpi-help">Success = answer or product match or solid next step</div>
           </div>
 
           <div class="kpi card">
             <div class="kpi-label">Escalation rate</div>
-            <div class="kpi-value" id="kpiEscalation">—</div>
-            <div class="kpi-help">Doorgestuurd naar mens/support</div>
+            <div class="kpi-value" id="kpiEscalation">-</div>
+            <div class="kpi-help">Handed off to human/support</div>
           </div>
 
           <div class="kpi card">
             <div class="kpi-label">Total Chats</div>
-            <div class="kpi-value" id="kpiConvos">—</div>
+            <div class="kpi-value" id="kpiConvos">-</div>
             <div class="kpi-help">Total chats during period</div>
           </div>
 
           <div class="kpi card">
             <div class="kpi-label">Leads captured</div>
-            <div class="kpi-value" id="kpiLeads">—</div>
-            <div class="kpi-help">Contactgegevens achtergelaten</div>
+            <div class="kpi-value" id="kpiLeads">-</div>
+            <div class="kpi-help">Contact details captured</div>
           </div>
 
           <div class="kpi card">
             <div class="kpi-label">Low-confidence answers</div>
-            <div class="kpi-value" id="kpiLowConf">—</div>
-            <div class="kpi-help">Risico: onzekere antwoorden</div>
+            <div class="kpi-value" id="kpiLowConf">-</div>
+            <div class="kpi-help">Risk: uncertain answers</div>
           </div>
 
           <div class="kpi card">
             <div class="kpi-label">Cost (est.)</div>
-            <div class="kpi-value" id="kpiCost">—</div>
-            <div class="kpi-help">Tokenschatting (demo)</div>
+            <div class="kpi-value" id="kpiCost">-</div>
+            <div class="kpi-help">Token estimate (demo)</div>
           </div>
         </section>
 
         <!-- Charts -->
         <section class="grid charts-grid">
           <div class="card">
-            <div class="card-title">Vandaag: Success rate</div>
+            <div class="card-title">Today: Success rate</div>
             <div class="donut-wrap">
               <canvas id="chartTodaySuccess"></canvas>
             </div>
           </div>
 
           <div class="card">
-            <div class="card-title">Conversations per dag</div>
+            <div class="card-title">Conversations per day</div>
             <canvas id="chartConvos"></canvas>
           </div>
 
@@ -158,10 +158,10 @@
               <table class="table" id="failedTable">
                 <thead>
                   <tr>
-                    <th>Datum</th>
-                    <th>Kanaal</th>
+                    <th>Date</th>
+                    <th>Channel</th>
                     <th>Type</th>
-                    <th>Vraag</th>
+                    <th>Question</th>
                     <th>Reason</th>
                   </tr>
                 </thead>
@@ -176,10 +176,10 @@
               <table class="table" id="escalationTable">
                 <thead>
                   <tr>
-                    <th>Datum</th>
-                    <th>Kanaal</th>
-                    <th>Vraag</th>
-                    <th>Actie</th>
+                    <th>Date</th>
+                    <th>Channel</th>
+                    <th>Question</th>
+                    <th>Action</th>
                     <th>Lead</th>
                   </tr>
                 </thead>
@@ -201,7 +201,7 @@
         </section>
 
         <div class="footer">
-          © Dashboard • Built for internal analytics
+          (c) Dashboard - Built for internal analytics
         </div>
       </div>
 
@@ -213,6 +213,7 @@
           <div class="sidebar-actions">
             <button class="btn" id="exportBtn" type="button">Export CSV</button>
             <button class="btn btn-primary" id="refreshBtn" type="button">Refresh</button>
+            <button class="btn btn-danger" id="signOutBtn" type="button">Sign out</button>
           </div>
 
           <div class="sidebar-title">Overview</div>
@@ -244,7 +245,7 @@
       <div class="overlay-head">
         <div class="overlay-title">
           <div class="overlay-kicker">Details</div>
-          <div id="drillOverlayTitle">—</div>
+          <div id="drillOverlayTitle">-</div>
         </div>
 
         <button class="overlay-close" id="drillOverlayClose" type="button" aria-label="Close overlay">
@@ -253,10 +254,10 @@
       </div>
 
       <div class="overlay-body">
-        <div class="overlay-meta" id="drillOverlayMeta">—</div>
+        <div class="overlay-meta" id="drillOverlayMeta">-</div>
         <div class="overlay-list" id="drillOverlayList">
           <!-- rows injected by ui.js later -->
-          <div class="empty">Geen items.</div>
+          <div class="empty">No items.</div>
         </div>
       </div>
     </div>

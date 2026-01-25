@@ -65,7 +65,7 @@ async function loadData({ preferNetwork = true } = {}) {
     setStatusPill("Loading");
   } else {
     setStatusPill("Disconnected");
-    setChatbotPill("Unknown");
+    setChatbotPill("Not connected");
   }
 
   // chatbot_status pill ophalen (best-effort, blokkeert load niet)
@@ -74,13 +74,13 @@ async function loadData({ preferNetwork = true } = {}) {
       try {
         const st = await fetchChatbotStatus({ botId: "chatbot" });
         if (!st) {
-          setChatbotPill("Unknown");
+          setChatbotPill("Not connected");
           return;
         }
         setChatbotPill(st.is_up ? "Online" : "Offline");
       } catch (e) {
         console.warn("chatbot_status fetch failed:", e);
-        setChatbotPill("Unknown");
+        setChatbotPill("Not connected");
       }
     })();
   }
@@ -311,8 +311,8 @@ function drillTurns({ kind, key, label }) {
   }
 
   if (kind === "topic") {
-    const want = String(label || "Overig");
-    return turns.filter((t) => String(t.topic || "Overig") === want);
+    const want = String(label || "Other");
+    return turns.filter((t) => String(t.topic || "Other") === want);
   }
 
   if (kind === "outcome") {
@@ -351,6 +351,7 @@ function wireUI() {
   const searchInput = document.getElementById("searchInput");
   const refreshBtn = document.getElementById("refreshBtn");
   const exportBtn = document.getElementById("exportBtn");
+  const signOutBtn = document.getElementById("signOutBtn");
   const connectionBtn = document.getElementById("connectionBtn");
   const connectionOverlay = document.getElementById("connectionOverlay");
   const connectionBackdrop = document.getElementById("connectionOverlayBackdrop");
@@ -395,6 +396,12 @@ function wireUI() {
 
   if (refreshBtn) refreshBtn.addEventListener("click", () => loadData({ preferNetwork: true }));
   if (exportBtn) exportBtn.addEventListener("click", exportCSV);
+  if (signOutBtn) {
+    signOutBtn.addEventListener("click", () => {
+      // TODO: wire real auth sign-out here.
+      window.location.href = "./login.html";
+    });
+  }
 
   if (connectionBtn && connectionOverlay) {
     const openConnectionOverlay = () => {
@@ -469,12 +476,12 @@ function repopulateFilters() {
 
   if (channelSelect) {
     const channels = uniq(state.turns.map((t) => t.channel || t.workspace_id || "unknown")).sort();
-    fillSelect(channelSelect, ["all", ...channels], state.filters.channel, "Alle kanalen");
+    fillSelect(channelSelect, ["all", ...channels], state.filters.channel, "All channels");
   }
 
   if (typeSelect) {
     const types = uniq(state.turns.map((t) => t.type || "unknown")).sort();
-    fillSelect(typeSelect, ["all", ...types], state.filters.type, "Alle types");
+    fillSelect(typeSelect, ["all", ...types], state.filters.type, "All types");
   }
 }
 

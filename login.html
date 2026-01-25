@@ -1,0 +1,155 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Login | Chatbot Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="./login.css" />
+</head>
+<body class="mode-login">
+  <main class="auth-page">
+    <div class="auth-shell">
+      <section class="auth-hero">
+        <div class="hero-badge">Client Access</div>
+        <div class="hero-brand">
+          <div class="brand-mark"></div>
+          <div>
+            <div class="brand-title">Chatbot Dashboard</div>
+            <div class="brand-sub">Analytics for real conversations</div>
+          </div>
+        </div>
+        <h1>Measure what your assistant actually does.</h1>
+        <p class="hero-copy">
+          Secure sign in for teams that care about outcomes, not just volume.
+          Connect your Supabase and keep your data in your own workspace.
+        </p>
+        <ul class="hero-list">
+          <li>Success, escalation, and lead metrics with drilldowns</li>
+          <li>Filter by channel, topic, and time range</li>
+          <li>Exportable conversations and failure reasons</li>
+        </ul>
+        <div class="hero-card">
+          <div class="hero-card-title">Setup steps</div>
+          <div class="hero-steps">
+            <div>
+              <div class="step-kicker">1</div>
+              <div class="step-title">Create your account</div>
+              <div class="step-copy">We will verify your email before access.</div>
+            </div>
+            <div>
+              <div class="step-kicker">2</div>
+              <div class="step-title">Connect Your Database</div>
+              <div class="step-copy">Gain access to your valuable data.</div>
+            </div>
+            <div>
+              <div class="step-kicker">3</div>
+              <div class="step-title">Review performance</div>
+              <div class="step-copy">See success and escalation trends fast.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="auth-panel" aria-live="polite">
+        <div class="panel-toggle" role="group" aria-label="Account mode">
+          <button class="toggle-btn is-active" id="modeLogin" type="button" aria-pressed="true">
+            Sign in
+          </button>
+          <button class="toggle-btn" id="modeCreate" type="button" aria-pressed="false">
+            Create account
+          </button>
+        </div>
+
+        <div class="panel-copy">
+          <h2 class="panel-title" id="panelTitle">Welcome back</h2>
+          <p class="panel-subtitle" id="panelSubtitle">
+            Sign in to your client workspace.
+          </p>
+        </div>
+
+        <form id="authForm" novalidate>
+          <div class="field" data-mode="create" data-field="fullName">
+            <label for="fullName">Full name</label>
+            <input id="fullName" name="fullName" autocomplete="name" placeholder="Jamie Rivera" />
+            <span class="field-error"></span>
+          </div>
+
+          <div class="field" data-mode="create" data-field="company">
+            <label for="company">Company</label>
+            <input id="company" name="company" autocomplete="organization" placeholder="VBJ Services" />
+            <span class="field-error"></span>
+          </div>
+
+          <div class="field" data-field="email">
+            <label for="email">Work email</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autocomplete="email"
+              placeholder="you@company.com"
+              required
+            />
+            <span class="field-error"></span>
+          </div>
+
+          <div class="field" data-field="password">
+            <label for="password">Password</label>
+            <div class="input-wrap">
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                placeholder="At least 8 characters"
+                required
+              />
+              <button class="ghost-btn" type="button" id="togglePassword" aria-pressed="false">
+                Show
+              </button>
+            </div>
+            <span class="field-helper">Use at least 8 characters.</span>
+            <span class="field-error"></span>
+          </div>
+
+          <div class="field" data-mode="create" data-field="confirmPassword">
+            <label for="confirmPassword">Confirm password</label>
+            <input
+              id="confirmPassword"
+              name="confirmPassword"
+              type="password"
+              autocomplete="new-password"
+              placeholder="Repeat your password"
+            />
+            <span class="field-error"></span>
+          </div>
+
+          <div class="row" data-mode="login">
+            <label class="checkbox">
+              <input type="checkbox" id="rememberMe" />
+              <span>Remember this device</span>
+            </label>
+            <button class="link-btn" type="button" id="forgotBtn">Forgot password</button>
+          </div>
+
+          <button class="primary-btn" id="submitBtn" type="submit">Sign in</button>
+
+          <div class="panel-note" id="panelNote">
+            We only use your email for authentication and account notices.
+          </div>
+        </form>
+
+        <div class="form-message" id="formMessage" role="status" aria-live="polite"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="./js/login.js"></script>
+</body>
+</html>

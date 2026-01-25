@@ -175,7 +175,7 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
   });
 
   // Topics
-  const topics = countBy(items, x => x.topic || "Overig");
+  const topics = countBy(items, x => x.topic || "Other");
   upsertChart("chartTopics", {
     type: "bar",
     plugins: basePlugins,
