@@ -65,7 +65,7 @@ async function loadData({ preferNetwork = true } = {}) {
     setStatusPill("Loading");
   } else {
     setStatusPill("Disconnected");
-    setChatbotPill("Not connected");
+    setChatbotPill("Disconnected");
   }
 
   // chatbot_status pill ophalen (best-effort, blokkeert load niet)
@@ -74,13 +74,13 @@ async function loadData({ preferNetwork = true } = {}) {
       try {
         const st = await fetchChatbotStatus({ botId: "chatbot" });
         if (!st) {
-          setChatbotPill("Not connected");
+          setChatbotPill("Disconnected");
           return;
         }
         setChatbotPill(st.is_up ? "Online" : "Offline");
       } catch (e) {
         console.warn("chatbot_status fetch failed:", e);
-        setChatbotPill("Not connected");
+        setChatbotPill("Disconnected");
       }
     })();
   }

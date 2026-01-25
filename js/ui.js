@@ -29,7 +29,7 @@ export function setChatbotPill(status, detail = "") {
 
   el.classList.remove("ok", "warn", "bad");
 
-  // Online/Offline/Loading/Not connected
+  // Online/Offline/Loading/Disconnected
   if (status === "Online") el.classList.add("ok");
   else if (status === "Offline") el.classList.add("bad");
   else el.classList.add("warn");
