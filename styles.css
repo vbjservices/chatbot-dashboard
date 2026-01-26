@@ -331,7 +331,10 @@ select option:checked {
   border-color: rgba(245,158,11,.65);
   background: rgba(245,158,11,.18);
 }
-.toast.ok{ border-color: rgba(34,197,94,.55); }
+.toast.ok{
+  border-color: rgba(34,197,94,.65);
+  background: rgba(34,197,94,.18);
+}
 .toast.bad{ border-color: rgba(239,68,68,.55); }
 
 .btn{

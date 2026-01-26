@@ -2,6 +2,7 @@
 
 let lastStatus = null;
 let lastChatbotStatus = null;
+let dbWasDisconnected = false;
 const toastTimers = new Map();
 
 export function setStatusPill(status, detail = "") {
@@ -16,10 +17,16 @@ export function setStatusPill(status, detail = "") {
 
   el.textContent = detail ? `Database: ${status} (${detail})` : `Database: ${status}`;
 
-  if (status === "Disconnected" && lastStatus !== "Disconnected") {
-    showToast("Database not connected", { variant: "warn", key: "db" });
+  if (status === "Disconnected") {
+    if (lastStatus !== "Disconnected") {
+      showToast("Database not connected", { variant: "warn", key: "db" });
+    }
+    dbWasDisconnected = true;
   } else if (status === "Connected") {
-    hideToastByKey("db");
+    if (dbWasDisconnected) {
+      showToast("Database connected", { variant: "ok", key: "db" });
+    }
+    dbWasDisconnected = false;
   }
 
   lastStatus = status;
