@@ -234,6 +234,17 @@ body::before {
   background: #f4efe6;
   border: 1px solid rgba(226, 216, 203, 0.9);
 }
+.method-label {
+  margin-top: 14px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.method-toggle {
+  margin-top: 8px;
+}
 
 .toggle-btn {
   border: none;
@@ -445,6 +456,14 @@ body.mode-login [data-mode="create"] {
 }
 
 body.mode-create [data-mode="login"] {
+  display: none;
+}
+
+body.method-magic [data-method="password"] {
+  display: none;
+}
+
+body.method-password [data-method="magic"] {
   display: none;
 }
 

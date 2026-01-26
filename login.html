@@ -12,7 +12,7 @@
   />
   <link rel="stylesheet" href="./login.css" />
 </head>
-<body class="mode-login">
+<body class="mode-login method-magic">
   <main class="auth-page">
     <div class="auth-shell">
       <section class="auth-hero">
@@ -66,6 +66,16 @@
           </button>
         </div>
 
+        <div class="method-label">Sign-in method</div>
+        <div class="panel-toggle method-toggle" role="group" aria-label="Sign-in method">
+          <button class="toggle-btn is-active" id="methodMagic" type="button" aria-pressed="true">
+            Magic link
+          </button>
+          <button class="toggle-btn" id="methodPassword" type="button" aria-pressed="false">
+            Password
+          </button>
+        </div>
+
         <div class="panel-copy">
           <h2 class="panel-title" id="panelTitle">Welcome back</h2>
           <p class="panel-subtitle" id="panelSubtitle">
@@ -99,7 +109,32 @@
             <span class="field-error"></span>
           </div>
 
-          <div class="magic-hint" id="magicHint">
+          <div class="field" data-method="password" data-field="password">
+            <label for="password">Password</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              placeholder="At least 8 characters"
+            />
+            <span class="field-helper">Use at least 8 characters.</span>
+            <span class="field-error"></span>
+          </div>
+
+          <div class="field" data-mode="create" data-method="password" data-field="confirmPassword">
+            <label for="confirmPassword">Confirm password</label>
+            <input
+              id="confirmPassword"
+              name="confirmPassword"
+              type="password"
+              autocomplete="new-password"
+              placeholder="Repeat your password"
+            />
+            <span class="field-error"></span>
+          </div>
+
+          <div class="magic-hint" id="magicHint" data-method="magic">
             We will email you a secure sign-in link. No password needed.
           </div>
 

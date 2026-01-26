@@ -1,9 +1,11 @@
-import { supabase } from "./auth.js";
+﻿import { supabase } from "./auth.js";
 
 const body = document.body;
 
 const modeLoginBtn = document.getElementById("modeLogin");
 const modeCreateBtn = document.getElementById("modeCreate");
+const methodMagicBtn = document.getElementById("methodMagic");
+const methodPasswordBtn = document.getElementById("methodPassword");
 const panelTitle = document.getElementById("panelTitle");
 const panelSubtitle = document.getElementById("panelSubtitle");
 const panelNote = document.getElementById("panelNote");
@@ -16,31 +18,70 @@ const fields = {
   fullName: document.getElementById("fullName"),
   company: document.getElementById("company"),
   email: document.getElementById("email"),
+  password: document.getElementById("password"),
+  confirmPassword: document.getElementById("confirmPassword"),
 };
 
 const copy = {
   login: {
-    title: "Welcome back",
-    subtitle: "We will email a secure sign-in link.",
-    submit: "Send sign-in link",
-    busy: "Sending link...",
-    note: "Use your work email to receive a secure sign-in link.",
-    hint: "We will email you a secure sign-in link. No password needed.",
+    magic: {
+      title: "Welcome back",
+      subtitle: "We will email a secure sign-in link.",
+      submit: "Send sign-in link",
+      busy: "Sending link...",
+      note: "Use your work email to receive a secure sign-in link.",
+      hint: "We will email you a secure sign-in link. No password needed.",
+    },
+    password: {
+      title: "Welcome back",
+      subtitle: "Sign in with your email and password.",
+      submit: "Sign in",
+      busy: "Signing in...",
+      note: "Use the password you set during account creation.",
+      hint: "Use your email and password to sign in.",
+    },
   },
   create: {
-    title: "Create your account",
-    subtitle: "We will email a verification link to finish setup.",
-    submit: "Create account",
-    busy: "Creating account...",
-    note: "We will email a verification link before you can sign in.",
-    hint: "Check your email to verify and finish account setup.",
+    magic: {
+      title: "Create your account",
+      subtitle: "We will email a verification link to finish setup.",
+      submit: "Create account",
+      busy: "Creating account...",
+      note: "We will email a verification link before you can sign in.",
+      hint: "Check your email to verify and finish account setup.",
+    },
+    password: {
+      title: "Create your account",
+      subtitle: "Set a password for your client workspace.",
+      submit: "Create account",
+      busy: "Creating account...",
+      note: "We will email a verification link before you can sign in.",
+      hint: "Use a strong password and verify by email.",
+    },
   },
 };
 
 const state = {
   mode: "login",
+  method: "magic",
   busy: false,
 };
+
+function applyCopy() {
+  const cfg = copy[state.mode][state.method];
+  panelTitle.textContent = cfg.title;
+  panelSubtitle.textContent = cfg.subtitle;
+  panelNote.textContent = cfg.note;
+  magicHint.textContent = cfg.hint;
+  submitBtn.textContent = cfg.submit;
+
+  if (fields.password) {
+    fields.password.setAttribute(
+      "autocomplete",
+      state.mode === "create" ? "new-password" : "current-password"
+    );
+  }
+}
 
 function setMode(mode) {
   state.mode = mode;
@@ -53,12 +94,7 @@ function setMode(mode) {
   modeLoginBtn.setAttribute("aria-pressed", mode === "login" ? "true" : "false");
   modeCreateBtn.setAttribute("aria-pressed", mode === "create" ? "true" : "false");
 
-  panelTitle.textContent = copy[mode].title;
-  panelSubtitle.textContent = copy[mode].subtitle;
-  panelNote.textContent = copy[mode].note;
-  magicHint.textContent = copy[mode].hint;
-  submitBtn.textContent = copy[mode].submit;
-
+  applyCopy();
   clearErrors();
   setMessage("", "");
 
@@ -66,10 +102,26 @@ function setMode(mode) {
   focusField?.focus();
 }
 
+function setMethod(method) {
+  state.method = method;
+  body.classList.toggle("method-magic", method === "magic");
+  body.classList.toggle("method-password", method === "password");
+
+  methodMagicBtn.classList.toggle("is-active", method === "magic");
+  methodPasswordBtn.classList.toggle("is-active", method === "password");
+
+  methodMagicBtn.setAttribute("aria-pressed", method === "magic" ? "true" : "false");
+  methodPasswordBtn.setAttribute("aria-pressed", method === "password" ? "true" : "false");
+
+  applyCopy();
+  clearErrors();
+  setMessage("", "");
+}
+
 function setBusy(isBusy) {
   state.busy = isBusy;
   submitBtn.disabled = isBusy;
-  submitBtn.textContent = isBusy ? copy[state.mode].busy : copy[state.mode].submit;
+  submitBtn.textContent = isBusy ? copy[state.mode][state.method].busy : copy[state.mode][state.method].submit;
 }
 
 function setMessage(type, text) {
@@ -98,6 +150,9 @@ function validate() {
   clearErrors();
 
   const email = fields.email?.value.trim() || "";
+  const password = fields.password?.value || "";
+  const confirmPassword = fields.confirmPassword?.value || "";
+
   let ok = true;
 
   if (state.mode === "create") {
@@ -123,18 +178,49 @@ function validate() {
     ok = false;
   }
 
+  if (state.method === "password") {
+    if (!password) {
+      setFieldError("password", "Password is required.");
+      ok = false;
+    } else if (password.length < 8) {
+      setFieldError("password", "Use at least 8 characters.");
+      ok = false;
+    }
+
+    if (state.mode === "create") {
+      if (!confirmPassword) {
+        setFieldError("confirmPassword", "Please confirm your password.");
+        ok = false;
+      } else if (confirmPassword !== password) {
+        setFieldError("confirmPassword", "Passwords do not match.");
+        ok = false;
+      }
+    }
+  }
+
   return ok;
 }
 
-function formatAuthError(error, mode) {
+function formatAuthError(error, mode, method) {
   const raw = String(error?.message || "").toLowerCase();
+  if (raw.includes("already registered")) {
+    return "Account already exists. Switch to Sign in.";
+  }
+  if (raw.includes("invalid login") || raw.includes("invalid credentials")) {
+    return "Invalid email or password.";
+  }
+  if (raw.includes("confirm") && raw.includes("email")) {
+    return "Check your email to confirm your account.";
+  }
   if (raw.includes("user not found") || raw.includes("not found")) {
     return mode === "login"
       ? "No account found. Switch to Create account."
       : "Account not found. Try creating a new account.";
   }
   if (raw.includes("rate") || raw.includes("too many")) {
-    return "Too many attempts. Try again in a few minutes.";
+    return method === "magic"
+      ? "Too many attempts. Try again in a few minutes or use password sign-in."
+      : "Too many attempts. Try again in a few minutes.";
   }
   if (raw.includes("invalid") && raw.includes("email")) {
     return "Use a valid work email.";
@@ -161,6 +247,8 @@ async function ensureSessionRedirect() {
 
 modeLoginBtn?.addEventListener("click", () => setMode("login"));
 modeCreateBtn?.addEventListener("click", () => setMode("create"));
+methodMagicBtn?.addEventListener("click", () => setMethod("magic"));
+methodPasswordBtn?.addEventListener("click", () => setMethod("password"));
 
 form?.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -177,31 +265,53 @@ form?.addEventListener("submit", async (event) => {
 
   try {
     const email = fields.email.value.trim();
-    const options = {
-      emailRedirectTo: getRedirectTo(),
-      shouldCreateUser: state.mode === "create",
-    };
+    let error = null;
 
-    if (state.mode === "create") {
-      options.data = {
-        full_name: fields.fullName?.value.trim(),
-        company: fields.company?.value.trim(),
+    if (state.method === "magic") {
+      const options = {
+        emailRedirectTo: getRedirectTo(),
+        shouldCreateUser: state.mode === "create",
       };
+
+      if (state.mode === "create") {
+        options.data = {
+          full_name: fields.fullName?.value.trim(),
+          company: fields.company?.value.trim(),
+        };
+      }
+
+      ({ error } = await supabase.auth.signInWithOtp({ email, options }));
+    } else if (state.mode === "create") {
+      const password = fields.password.value;
+      const options = {
+        data: {
+          full_name: fields.fullName?.value.trim(),
+          company: fields.company?.value.trim(),
+        },
+        emailRedirectTo: getRedirectTo(),
+      };
+
+      ({ error } = await supabase.auth.signUp({ email, password, options }));
+    } else {
+      const password = fields.password.value;
+      ({ error } = await supabase.auth.signInWithPassword({ email, password }));
     }
 
-    const { error } = await supabase.auth.signInWithOtp({ email, options });
-
     if (error) {
-      setMessage("error", formatAuthError(error, state.mode));
-    } else {
+      setMessage("error", formatAuthError(error, state.mode, state.method));
+    } else if (state.method === "magic") {
       const text =
         state.mode === "login"
           ? "Check your email for your sign-in link."
           : "Check your email to verify and finish account setup.";
       setMessage("success", text);
+    } else if (state.mode === "create") {
+      setMessage("success", "Account created. Check your email to confirm before signing in.");
+    } else {
+      setMessage("success", "Signed in. Redirecting...");
     }
   } catch (err) {
-    setMessage("error", formatAuthError(err, state.mode));
+    setMessage("error", formatAuthError(err, state.mode, state.method));
   } finally {
     setBusy(false);
   }
@@ -223,5 +333,7 @@ supabase.auth.onAuthStateChange((_event, session) => {
 
 const params = new URLSearchParams(window.location.search);
 const startMode = params.get("mode") === "create" ? "create" : "login";
+const startMethod = params.get("method") === "password" ? "password" : "magic";
 setMode(startMode);
+setMethod(startMethod);
 ensureSessionRedirect();
