@@ -143,7 +143,7 @@ function formatAuthError(error, mode) {
 }
 
 function getRedirectTo() {
-  return new URL("./index.html", window.location.href).href;
+  return new URL(".", window.location.href).href;
 }
 
 async function ensureSessionRedirect() {
