@@ -99,43 +99,8 @@
             <span class="field-error"></span>
           </div>
 
-          <div class="field" data-field="password">
-            <label for="password">Password</label>
-            <div class="input-wrap">
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autocomplete="current-password"
-                placeholder="At least 8 characters"
-                required
-              />
-              <button class="ghost-btn" type="button" id="togglePassword" aria-pressed="false">
-                Show
-              </button>
-            </div>
-            <span class="field-helper">Use at least 8 characters.</span>
-            <span class="field-error"></span>
-          </div>
-
-          <div class="field" data-mode="create" data-field="confirmPassword">
-            <label for="confirmPassword">Confirm password</label>
-            <input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              autocomplete="new-password"
-              placeholder="Repeat your password"
-            />
-            <span class="field-error"></span>
-          </div>
-
-          <div class="row" data-mode="login">
-            <label class="checkbox">
-              <input type="checkbox" id="rememberMe" />
-              <span>Remember this device</span>
-            </label>
-            <button class="link-btn" type="button" id="forgotBtn">Forgot password</button>
+          <div class="magic-hint" id="magicHint">
+            We will email you a secure sign-in link. No password needed.
           </div>
 
           <button class="primary-btn" id="submitBtn" type="submit">Sign in</button>
@@ -150,6 +115,6 @@
     </div>
   </main>
 
-  <script src="./js/login.js"></script>
+  <script type="module" src="./js/login.js"></script>
 </body>
 </html>

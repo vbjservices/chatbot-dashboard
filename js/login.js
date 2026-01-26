@@ -1,38 +1,39 @@
-﻿const body = document.body;
+import { supabase } from "./auth.js";
+
+const body = document.body;
 
 const modeLoginBtn = document.getElementById("modeLogin");
 const modeCreateBtn = document.getElementById("modeCreate");
 const panelTitle = document.getElementById("panelTitle");
 const panelSubtitle = document.getElementById("panelSubtitle");
 const panelNote = document.getElementById("panelNote");
+const magicHint = document.getElementById("magicHint");
 const form = document.getElementById("authForm");
 const submitBtn = document.getElementById("submitBtn");
 const messageEl = document.getElementById("formMessage");
-const forgotBtn = document.getElementById("forgotBtn");
-const togglePasswordBtn = document.getElementById("togglePassword");
 
 const fields = {
   fullName: document.getElementById("fullName"),
   company: document.getElementById("company"),
   email: document.getElementById("email"),
-  password: document.getElementById("password"),
-  confirmPassword: document.getElementById("confirmPassword"),
 };
 
 const copy = {
   login: {
     title: "Welcome back",
-    subtitle: "Sign in to your client workspace.",
-    submit: "Sign in",
-    busy: "Signing in...",
-    note: "We only use your email for authentication and account notices.",
+    subtitle: "We will email a secure sign-in link.",
+    submit: "Send sign-in link",
+    busy: "Sending link...",
+    note: "Use your work email to receive a secure sign-in link.",
+    hint: "We will email you a secure sign-in link. No password needed.",
   },
   create: {
     title: "Create your account",
-    subtitle: "Set up access before you connect data.",
+    subtitle: "We will email a verification link to finish setup.",
     submit: "Create account",
     busy: "Creating account...",
     note: "We will email a verification link before you can sign in.",
+    hint: "Check your email to verify and finish account setup.",
   },
 };
 
@@ -55,14 +56,8 @@ function setMode(mode) {
   panelTitle.textContent = copy[mode].title;
   panelSubtitle.textContent = copy[mode].subtitle;
   panelNote.textContent = copy[mode].note;
+  magicHint.textContent = copy[mode].hint;
   submitBtn.textContent = copy[mode].submit;
-
-  if (fields.password) {
-    fields.password.setAttribute(
-      "autocomplete",
-      mode === "create" ? "new-password" : "current-password"
-    );
-  }
 
   clearErrors();
   setMessage("", "");
@@ -103,14 +98,11 @@ function validate() {
   clearErrors();
 
   const email = fields.email?.value.trim() || "";
-  const password = fields.password?.value || "";
-
   let ok = true;
 
   if (state.mode === "create") {
     const fullName = fields.fullName?.value.trim() || "";
     const company = fields.company?.value.trim() || "";
-    const confirmPassword = fields.confirmPassword?.value || "";
 
     if (!fullName) {
       setFieldError("fullName", "Full name is required.");
@@ -119,16 +111,6 @@ function validate() {
 
     if (!company) {
       setFieldError("company", "Company is required.");
-      ok = false;
-    }
-
-    if (!confirmPassword) {
-      setFieldError("confirmPassword", "Please confirm your password.");
-      ok = false;
-    }
-
-    if (confirmPassword && confirmPassword !== password) {
-      setFieldError("confirmPassword", "Passwords do not match.");
       ok = false;
     }
   }
@@ -141,19 +123,40 @@ function validate() {
     ok = false;
   }
 
-  if (!password) {
-    setFieldError("password", "Password is required.");
-    ok = false;
-  } else if (password.length < 8) {
-    setFieldError("password", "Use at least 8 characters.");
-    ok = false;
-  }
-
   return ok;
 }
 
-function simulateRequest() {
-  return new Promise((resolve) => setTimeout(resolve, 700));
+function formatAuthError(error, mode) {
+  const raw = String(error?.message || "").toLowerCase();
+  if (raw.includes("user not found") || raw.includes("not found")) {
+    return mode === "login"
+      ? "No account found. Switch to Create account."
+      : "Account not found. Try creating a new account.";
+  }
+  if (raw.includes("rate") || raw.includes("too many")) {
+    return "Too many attempts. Try again in a few minutes.";
+  }
+  if (raw.includes("invalid") && raw.includes("email")) {
+    return "Use a valid work email.";
+  }
+  return error?.message || "Something went wrong. Try again.";
+}
+
+function getRedirectTo() {
+  return new URL("./index.html", window.location.href).href;
+}
+
+async function ensureSessionRedirect() {
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data?.session) {
+      window.location.href = "./index.html";
+      return true;
+    }
+  } catch (err) {
+    console.warn("Auth session check failed:", err);
+  }
+  return false;
 }
 
 modeLoginBtn?.addEventListener("click", () => setMode("login"));
@@ -173,32 +176,35 @@ form?.addEventListener("submit", async (event) => {
   setBusy(true);
 
   try {
-    await simulateRequest();
-    const text =
-      state.mode === "login"
-        ? "UI is ready. Auth is not wired yet, so no real sign in happens."
-        : "UI is ready. Account creation is not wired yet, so nothing is stored.";
-    setMessage("warn", text);
+    const email = fields.email.value.trim();
+    const options = {
+      emailRedirectTo: getRedirectTo(),
+      shouldCreateUser: state.mode === "create",
+    };
+
+    if (state.mode === "create") {
+      options.data = {
+        full_name: fields.fullName?.value.trim(),
+        company: fields.company?.value.trim(),
+      };
+    }
+
+    const { error } = await supabase.auth.signInWithOtp({ email, options });
+
+    if (error) {
+      setMessage("error", formatAuthError(error, state.mode));
+    } else {
+      const text =
+        state.mode === "login"
+          ? "Check your email for your sign-in link."
+          : "Check your email to verify and finish account setup.";
+      setMessage("success", text);
+    }
   } catch (err) {
-    setMessage("error", "Something went wrong. Try again.");
+    setMessage("error", formatAuthError(err, state.mode));
   } finally {
     setBusy(false);
   }
-});
-
-forgotBtn?.addEventListener("click", () => {
-  setMessage("warn", "Password reset is not wired yet.");
-});
-
-togglePasswordBtn?.addEventListener("click", () => {
-  if (!fields.password) return;
-  const nextType = fields.password.type === "password" ? "text" : "password";
-  fields.password.type = nextType;
-  togglePasswordBtn.textContent = nextType === "password" ? "Show" : "Hide";
-  togglePasswordBtn.setAttribute(
-    "aria-pressed",
-    nextType === "text" ? "true" : "false"
-  );
 });
 
 form?.addEventListener("input", (event) => {
@@ -209,6 +215,13 @@ form?.addEventListener("input", (event) => {
   if (error) error.textContent = "";
 });
 
+supabase.auth.onAuthStateChange((_event, session) => {
+  if (session) {
+    window.location.href = "./index.html";
+  }
+});
+
 const params = new URLSearchParams(window.location.search);
 const startMode = params.get("mode") === "create" ? "create" : "login";
 setMode(startMode);
+ensureSessionRedirect();

@@ -401,6 +401,16 @@ input:focus {
   line-height: 1.5;
 }
 
+.magic-hint {
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px dashed rgba(226, 216, 203, 0.9);
+  border-radius: 14px;
+  padding: 12px 14px;
+  line-height: 1.5;
+}
+
 .form-message {
   margin-top: 16px;
   padding: 12px 14px;

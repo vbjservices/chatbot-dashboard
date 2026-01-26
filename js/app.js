@@ -4,6 +4,7 @@ import { getConnection, setConnection, hasConnection } from "./connection.js";
 import { readCache, writeCache, buildCacheMeta } from "./storage.js";
 import { fetchSupabaseRows, fetchChatbotStatus } from "./supabase.js";
 import { normalizeChatEvent, groupTurnsToConversations } from "./normalize.js";
+import { supabase } from "./auth.js";
 import {
   setStatusPill,
   setChatbotPill,
@@ -44,17 +45,33 @@ const state = {
   source: "—",
 };
 
-init();
+init().catch((err) => {
+  console.error("Init failed:", err);
+});
 
 /* ---------------- init ---------------- */
 
-function init() {
+async function init() {
+  const authed = await ensureAuthenticated();
+  if (!authed) return;
+
   setEnvLabel(ENV_LABEL);
   setStatusPill("Loading");
   setChatbotPill("Loading");
 
   wireUI();
   loadData({ preferNetwork: true });
+}
+
+async function ensureAuthenticated() {
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data?.session) return true;
+  } catch (err) {
+    console.warn("Auth session check failed:", err);
+  }
+  window.location.href = "./login.html";
+  return false;
 }
 
 /* ---------------- loading ---------------- */
@@ -433,9 +450,14 @@ function wireUI() {
   if (refreshBtn) refreshBtn.addEventListener("click", () => loadData({ preferNetwork: true }));
   if (exportBtn) exportBtn.addEventListener("click", exportCSV);
   if (signOutBtn) {
-    signOutBtn.addEventListener("click", () => {
-      // TODO: wire real auth sign-out here.
-      window.location.href = "./login.html";
+    signOutBtn.addEventListener("click", async () => {
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.warn("Sign out failed:", err);
+      } finally {
+        window.location.href = "./login.html";
+      }
     });
   }
 
