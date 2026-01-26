@@ -708,12 +708,32 @@ canvas{
   color:#0c1a14;
 }
 
+#connectionOverlayTitle:hover{
+  color:#2563eb;
+  text-decoration-color: currentColor;
+}
+
 .connection-link{
   cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
 }
 .connection-link:hover{
-  color:#0a3f2c;
+  color:#2563eb;
   text-decoration-thickness: 2px;
+}
+
+.connection-link .link-icon{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.connection-link .link-icon svg{
+  width:16px;
+  height:16px;
+  display:block;
 }
 
 .connection-body{
