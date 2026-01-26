@@ -1,5 +1,9 @@
 // ui.js
 
+let lastStatus = null;
+let lastChatbotStatus = null;
+const toastTimers = new Map();
+
 export function setStatusPill(status, detail = "") {
   const el = document.getElementById("statusPill");
   if (!el) return;
@@ -12,6 +16,14 @@ export function setStatusPill(status, detail = "") {
 
   el.textContent = detail ? `Database: ${status} (${detail})` : `Database: ${status}`;
 
+  if (status === "Disconnected" && lastStatus !== "Disconnected") {
+    showToast("Database not connected", { variant: "warn", key: "db" });
+  } else if (status === "Connected") {
+    hideToastByKey("db");
+  }
+
+  lastStatus = status;
+
   const connectionEl = document.getElementById("connectionStatus");
   if (connectionEl) {
     connectionEl.classList.remove("ok", "warn", "bad");
@@ -20,6 +32,74 @@ export function setStatusPill(status, detail = "") {
     else connectionEl.classList.add("warn");
     connectionEl.textContent = status;
   }
+}
+
+function getToastStack() {
+  let stack = document.getElementById("toastStack");
+  if (!stack) {
+    stack = document.createElement("div");
+    stack.id = "toastStack";
+    stack.className = "toast-stack";
+    document.body.appendChild(stack);
+  }
+  return stack;
+}
+
+function showToast(message, { duration = 4500, variant = "warn", key = "" } = {}) {
+  const text = String(message || "").trim();
+  if (!text) return null;
+
+  const stack = getToastStack();
+  let el = null;
+  if (key) {
+    el = Array.from(stack.children).find((node) => node.dataset.key === key) || null;
+  }
+  if (!el) {
+    el = document.createElement("div");
+    el.className = "toast";
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+    if (key) el.dataset.key = key;
+    el.addEventListener("click", () => dismissToast(el));
+    stack.appendChild(el);
+  }
+
+  el.textContent = text;
+  el.classList.remove("warn", "bad", "ok");
+  if (variant) el.classList.add(variant);
+  requestAnimationFrame(() => el.classList.add("show"));
+
+  const prevTimer = toastTimers.get(el);
+  if (prevTimer) clearTimeout(prevTimer);
+  const timer = setTimeout(() => dismissToast(el), duration);
+  toastTimers.set(el, timer);
+  return el;
+}
+
+function dismissToast(el) {
+  if (!el) return;
+  const timer = toastTimers.get(el);
+  if (timer) {
+    clearTimeout(timer);
+    toastTimers.delete(el);
+  }
+
+  el.classList.remove("show");
+  el.setAttribute("aria-hidden", "true");
+
+  const cleanup = () => {
+    if (el?.parentNode) el.parentNode.removeChild(el);
+  };
+
+  el.addEventListener("transitionend", cleanup, { once: true });
+  setTimeout(cleanup, 250);
+}
+
+function hideToastByKey(key) {
+  const stack = document.getElementById("toastStack");
+  if (!stack) return;
+  const el = Array.from(stack.children).find((node) => node.dataset.key === key);
+  dismissToast(el);
 }
 
 /* Chatbot pill */
@@ -35,6 +115,15 @@ export function setChatbotPill(status, detail = "") {
   else el.classList.add("warn");
 
   el.textContent = detail ? `Assistant: ${status} (${detail})` : `Assistant: ${status}`;
+
+  const isDisconnected = status === "Disconnected" || status === "Offline";
+  if (isDisconnected && lastChatbotStatus !== status) {
+    showToast("Assistant not connected", { variant: "warn", key: "assistant" });
+  } else if (status === "Online") {
+    hideToastByKey("assistant");
+  }
+
+  lastChatbotStatus = status;
 }
 
 export function setEnvLabel(text) {
