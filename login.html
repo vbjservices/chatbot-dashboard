@@ -118,8 +118,26 @@
                   autocomplete="current-password"
                   placeholder="At least 8 characters"
                 />
-                <button class="ghost-btn" type="button" id="togglePassword" aria-pressed="false">
-                  Show
+                <button
+                  class="password-eye"
+                  id="togglePassword"
+                  type="button"
+                  aria-label="Show password"
+                  aria-pressed="false"
+                  data-visible="false"
+                >
+                  <span class="eye-show" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z"></path>
+                      <circle cx="12" cy="12" r="3.2"></circle>
+                    </svg>
+                  </span>
+                  <span class="eye-hide" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z"></path>
+                      <path d="M4 4l16 16"></path>
+                    </svg>
+                  </span>
                 </button>
               </div>
               <span class="field-helper">Use at least 8 characters.</span>

@@ -356,8 +356,10 @@ togglePasswordBtn?.addEventListener("click", () => {
   passwordField.type = nextType;
   if (fields.confirmPassword) fields.confirmPassword.type = nextType;
 
-  togglePasswordBtn.textContent = nextType === "password" ? "Show" : "Hide";
-  togglePasswordBtn.setAttribute("aria-pressed", nextType === "text" ? "true" : "false");
+  const visible = nextType === "text";
+  togglePasswordBtn.setAttribute("data-visible", visible ? "true" : "false");
+  togglePasswordBtn.setAttribute("aria-pressed", visible ? "true" : "false");
+  togglePasswordBtn.setAttribute("aria-label", visible ? "Hide password" : "Show password");
 });
 
 supabase.auth.onAuthStateChange((_event, session) => {
