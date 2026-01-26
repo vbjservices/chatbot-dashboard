@@ -238,7 +238,7 @@ function applyFiltersAndRender({ keepSelection = true } = {}) {
     renderConversationList(state.filteredConvos, state.selectedId, onSelect);
 
     const convo = state.filteredConvos.find((c) => c.conversation_id === state.selectedId);
-    renderConversationDetail(convo || null);
+    renderConversationDetail(convo || null, { searchTerm: state.filters.search });
   };
 
   const onSelect = (id) => selectConversationInMain(id);
@@ -246,7 +246,7 @@ function applyFiltersAndRender({ keepSelection = true } = {}) {
   renderConversationList(state.filteredConvos, state.selectedId, onSelect);
 
   const selected = state.filteredConvos.find((c) => c.conversation_id === state.selectedId);
-  renderConversationDetail(selected || null);
+  renderConversationDetail(selected || null, { searchTerm: state.filters.search });
 
   const failedTurns = state.filteredTurns.filter((t) => !(t.success ?? t.outcome?.success));
   const escalTurns = state.filteredTurns.filter((t) => !!(t.escalated ?? t.outcome?.escalated));
@@ -282,6 +282,7 @@ function renderChartsOnly({ onPickConversation } = {}) {
         title: buildDrillTitle({ kind, label }),
         turns,
         getConversationById,
+        searchTerm: state.filters.search,
       });
     },
   });

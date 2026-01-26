@@ -471,6 +471,16 @@ select option:checked {
   overflow-wrap: anywhere;
 }
 
+.search-hit{
+  background: rgba(250,204,21,.35);
+  box-shadow: 0 0 0 1px rgba(250,204,21,.22) inset;
+  border-radius: 4px;
+  padding: 0 2px;
+  color: inherit;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
 .msg.user{
   background:linear-gradient(180deg, rgba(124,58,237,.38), rgba(124,58,237,.16));
   border-color:rgba(124,58,237,.55);

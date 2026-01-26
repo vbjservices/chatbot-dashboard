@@ -120,7 +120,7 @@ export function renderConversationList(conversations, activeId, onSelect) {
  * - per message bubble max 3 status-badges
  * - bubble kleur: alleen failed -> rood, anders groen (default)
  */
-export function renderConversationDetail(convo) {
+export function renderConversationDetail(convo, { searchTerm = "" } = {}) {
   const root = document.getElementById("convoDetail");
   if (!root) return;
 
@@ -162,7 +162,7 @@ export function renderConversationDetail(convo) {
     </div>
 
     <div class="detail-messages">
-      ${msgs.map(renderMsgWithStatus).join("")}
+      ${msgs.map((msg) => renderMsgWithStatus(msg, searchTerm)).join("")}
     </div>
   `;
 }
@@ -268,6 +268,7 @@ export function openDrilldownOverlay({
   // NEW API
   turns = [],
   getConversationById = null,
+  searchTerm = "",
 
   // OLD API (fallback, niet breken)
   meta = "",
@@ -372,7 +373,7 @@ export function openDrilldownOverlay({
 
           if (expandedKey) {
             body.style.display = "block";
-            body.innerHTML = renderConversationForTurn(t, convoResolver);
+            body.innerHTML = renderConversationForTurn(t, convoResolver, searchTerm);
             wrap.scrollIntoView({ block: "nearest", behavior: "smooth" });
           } else {
             body.style.display = "none";
@@ -450,7 +451,7 @@ export function closeDrilldownOverlay() {
   if (!connectionOpen) document.body.classList.remove("overlay-open");
 }
 
-function renderConversationForTurn(turn, convoResolver) {
+function renderConversationForTurn(turn, convoResolver, searchTerm = "") {
   const convoId = turn.conversation_id;
   const convo = convoId ? convoResolver(convoId) : null;
 
@@ -478,7 +479,7 @@ function renderConversationForTurn(turn, convoResolver) {
 
   const messages = `
     <div class="detail-messages">
-      ${msgs.map(renderMsgWithStatus).join("")}
+      ${msgs.map((msg) => renderMsgWithStatus(msg, searchTerm)).join("")}
     </div>
   `;
 
@@ -511,12 +512,13 @@ function buildFallbackMessages(turn) {
    Message rendering w/ status
    ========================= */
 
-function renderMsgWithStatus(m) {
+function renderMsgWithStatus(m, searchTerm = "") {
   const roleRaw = m?.role || "unknown";
   const role = normalizeRole(roleRaw); // user/assistant/system
   const roleLabel = prettyRole(roleRaw); // User/Assistant/System
   const at = m?.at ? fmtDateTime(m.at) : "—";
   const content = m?.content || "";
+  const contentHtml = highlightSearch(content, searchTerm);
 
   const badges = getMessageBadges(m, 3);
   const isFailedAssistant = role === "assistant" && badges.some(b => b.text === "Failed");
@@ -546,7 +548,7 @@ function renderMsgWithStatus(m) {
           ${chip}
         </span>
       </div>
-      <div class="content">${escapeHTML(content)}</div>
+      <div class="content">${contentHtml}</div>
     </div>
   `;
 }
@@ -754,6 +756,22 @@ function truncate(s, max) {
   const t = String(s ?? "");
   if (t.length <= max) return t;
   return t.slice(0, max - 1) + "…";
+}
+
+function highlightSearch(text, query) {
+  const safe = escapeHTML(text ?? "");
+  const q = String(query ?? "").trim();
+  if (!q) return safe;
+
+  const pattern = escapeRegExp(q);
+  if (!pattern) return safe;
+
+  const re = new RegExp(pattern, "gi");
+  return safe.replace(re, (match) => `<span class="search-hit">${match}</span>`);
+}
+
+function escapeRegExp(s) {
+  return String(s ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function escapeHTML(s) {
