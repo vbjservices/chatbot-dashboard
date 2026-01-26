@@ -55,6 +55,8 @@ async function init() {
   const authed = await ensureAuthenticated();
   if (!authed) return;
 
+  await hydrateSidebarUser();
+
   setEnvLabel(ENV_LABEL);
   setStatusPill("Loading");
   setChatbotPill("Loading");
@@ -72,6 +74,41 @@ async function ensureAuthenticated() {
   }
   window.location.href = "./login.html";
   return false;
+}
+
+async function hydrateSidebarUser() {
+  const nameEl = document.getElementById("sidebarUserName");
+  const emailEl = document.getElementById("sidebarUserEmail");
+  if (!nameEl) return;
+
+  try {
+    const { data } = await supabase.auth.getUser();
+    const user = data?.user;
+    if (!user) {
+      nameEl.textContent = "-";
+      if (emailEl) emailEl.textContent = "";
+      return;
+    }
+
+    const meta = user.user_metadata || {};
+    const name = meta.full_name || meta.name || user.email || "-";
+    const email = user.email || "";
+
+    nameEl.textContent = name;
+    if (emailEl) {
+      if (!email || email === name) {
+        emailEl.textContent = "";
+        emailEl.style.display = "none";
+      } else {
+        emailEl.textContent = email;
+        emailEl.style.display = "block";
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to load user profile:", err);
+    nameEl.textContent = "-";
+    if (emailEl) emailEl.textContent = "";
+  }
 }
 
 /* ---------------- loading ---------------- */

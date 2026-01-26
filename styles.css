@@ -159,6 +159,32 @@ html, body { overflow-x: hidden; }
   margin:2px 0 10px;
 }
 
+.sidebar-user{
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.04);
+  border-radius:14px;
+  padding:10px 12px;
+  margin-bottom:14px;
+}
+.sidebar-user-label{
+  font-size:11px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin-bottom:6px;
+}
+.sidebar-user-name{
+  font-weight:700;
+  color:#f2f6ff;
+  word-break:break-word;
+}
+.sidebar-user-email{
+  font-size:12px;
+  color:rgba(232,238,252,.72);
+  margin-top:4px;
+  word-break:break-word;
+}
+
 .sidebar-actions{
   display:grid;
   grid-template-columns: 1fr;
