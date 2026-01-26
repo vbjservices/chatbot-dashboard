@@ -12,7 +12,7 @@
   />
   <link rel="stylesheet" href="./login.css" />
 </head>
-<body class="mode-login method-magic">
+<body class="mode-login">
   <main class="auth-page">
     <div class="auth-shell">
       <section class="auth-hero">
@@ -66,15 +66,9 @@
           </button>
         </div>
 
-        <div class="method-label">Sign-in method</div>
-        <div class="panel-toggle method-toggle" role="group" aria-label="Sign-in method">
-          <button class="toggle-btn is-active" id="methodMagic" type="button" aria-pressed="true">
-            Magic link
-          </button>
-          <button class="toggle-btn" id="methodPassword" type="button" aria-pressed="false">
-            Password
-          </button>
-        </div>
+        <button class="link-btn magic-top-btn" type="button" id="magicTopBtn">
+          Use magic link
+        </button>
 
         <div class="panel-copy">
           <h2 class="panel-title" id="panelTitle">Welcome back</h2>
@@ -92,53 +86,91 @@
 
           <div class="field" data-mode="create" data-field="company">
             <label for="company">Company</label>
-            <input id="company" name="company" autocomplete="organization" placeholder="VBJ Services" />
+            <input id="company" name="company" autocomplete="organization" placeholder="Your company" />
             <span class="field-error"></span>
           </div>
 
-          <div class="field" data-field="email">
-            <label for="email">Work email</label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autocomplete="email"
-              placeholder="you@company.com"
-              required
-            />
-            <span class="field-error"></span>
+          <div class="section-block">
+            <div class="section-head">
+              <div class="section-title">Password access</div>
+              <div class="section-sub" id="passwordSub">Sign in with your email and password.</div>
+            </div>
+
+            <div class="field" data-field="email">
+              <label for="email">Work email</label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autocomplete="email"
+                placeholder="you@company.com"
+              />
+              <span class="field-error"></span>
+            </div>
+
+            <div class="field" data-field="password">
+              <label for="password">Password</label>
+              <div class="input-wrap">
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autocomplete="current-password"
+                  placeholder="At least 8 characters"
+                />
+                <button class="ghost-btn" type="button" id="togglePassword" aria-pressed="false">
+                  Show
+                </button>
+              </div>
+              <span class="field-helper">Use at least 8 characters.</span>
+              <span class="field-error"></span>
+            </div>
+
+            <div class="field" data-mode="create" data-field="confirmPassword">
+              <label for="confirmPassword">Confirm password</label>
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                autocomplete="new-password"
+                placeholder="Repeat your password"
+              />
+              <span class="field-error"></span>
+            </div>
+
+            <button class="primary-btn" id="passwordSubmitBtn" type="submit" data-method="password">
+              Sign in
+            </button>
           </div>
 
-          <div class="field" data-method="password" data-field="password">
-            <label for="password">Password</label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autocomplete="current-password"
-              placeholder="At least 8 characters"
-            />
-            <span class="field-helper">Use at least 8 characters.</span>
-            <span class="field-error"></span>
-          </div>
+          <div class="section-divider"><span>or</span></div>
 
-          <div class="field" data-mode="create" data-method="password" data-field="confirmPassword">
-            <label for="confirmPassword">Confirm password</label>
-            <input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              autocomplete="new-password"
-              placeholder="Repeat your password"
-            />
-            <span class="field-error"></span>
-          </div>
+          <div class="section-block magic-block" id="magicSection">
+            <div class="section-head">
+              <div class="section-title">Magic link</div>
+              <div class="section-sub" id="magicSub">Email a secure sign-in link.</div>
+            </div>
 
-          <div class="magic-hint" id="magicHint" data-method="magic">
-            We will email you a secure sign-in link. No password needed.
-          </div>
+            <div class="field" data-field="magicEmail">
+              <label for="magicEmail">Email</label>
+              <input
+                id="magicEmail"
+                name="magicEmail"
+                type="email"
+                autocomplete="email"
+                placeholder="you@company.com"
+              />
+              <span class="field-error"></span>
+            </div>
 
-          <button class="primary-btn" id="submitBtn" type="submit">Sign in</button>
+            <div class="magic-hint" id="magicHint">
+              We will email you a secure sign-in link. No password needed.
+            </div>
+
+            <button class="secondary-btn" id="magicSubmitBtn" type="submit" data-method="magic">
+              Send magic link
+            </button>
+          </div>
 
           <div class="panel-note" id="panelNote">
             We only use your email for authentication and account notices.

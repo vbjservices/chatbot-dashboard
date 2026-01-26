@@ -4,14 +4,17 @@ const body = document.body;
 
 const modeLoginBtn = document.getElementById("modeLogin");
 const modeCreateBtn = document.getElementById("modeCreate");
-const methodMagicBtn = document.getElementById("methodMagic");
-const methodPasswordBtn = document.getElementById("methodPassword");
+const magicTopBtn = document.getElementById("magicTopBtn");
 const panelTitle = document.getElementById("panelTitle");
 const panelSubtitle = document.getElementById("panelSubtitle");
 const panelNote = document.getElementById("panelNote");
+const passwordSub = document.getElementById("passwordSub");
+const magicSub = document.getElementById("magicSub");
 const magicHint = document.getElementById("magicHint");
 const form = document.getElementById("authForm");
-const submitBtn = document.getElementById("submitBtn");
+const passwordSubmitBtn = document.getElementById("passwordSubmitBtn");
+const magicSubmitBtn = document.getElementById("magicSubmitBtn");
+const togglePasswordBtn = document.getElementById("togglePassword");
 const messageEl = document.getElementById("formMessage");
 
 const fields = {
@@ -20,60 +23,59 @@ const fields = {
   email: document.getElementById("email"),
   password: document.getElementById("password"),
   confirmPassword: document.getElementById("confirmPassword"),
+  magicEmail: document.getElementById("magicEmail"),
 };
 
 const copy = {
   login: {
-    magic: {
-      title: "Welcome back",
-      subtitle: "We will email a secure sign-in link.",
-      submit: "Send sign-in link",
-      busy: "Sending link...",
-      note: "Use your work email to receive a secure sign-in link.",
-      hint: "We will email you a secure sign-in link. No password needed.",
-    },
+    title: "Welcome back",
+    subtitle: "Sign in with a password or use a magic link.",
+    note: "Use your work email for secure access.",
     password: {
-      title: "Welcome back",
-      subtitle: "Sign in with your email and password.",
+      sub: "Sign in with your email and password.",
       submit: "Sign in",
       busy: "Signing in...",
-      note: "Use the password you set during account creation.",
-      hint: "Use your email and password to sign in.",
+    },
+    magic: {
+      sub: "Email a secure sign-in link.",
+      submit: "Send magic link",
+      busy: "Sending link...",
+      hint: "We will email you a secure sign-in link. No password needed.",
     },
   },
   create: {
-    magic: {
-      title: "Create your account",
-      subtitle: "We will email a verification link to finish setup.",
-      submit: "Create account",
-      busy: "Creating account...",
-      note: "We will email a verification link before you can sign in.",
-      hint: "Check your email to verify and finish account setup.",
-    },
+    title: "Create your account",
+    subtitle: "Create with a password or use a magic link.",
+    note: "We will email a verification link before you can sign in.",
     password: {
-      title: "Create your account",
-      subtitle: "Set a password for your client workspace.",
+      sub: "Set a password for your client workspace.",
       submit: "Create account",
       busy: "Creating account...",
-      note: "We will email a verification link before you can sign in.",
-      hint: "Use a strong password and verify by email.",
+    },
+    magic: {
+      sub: "Send a verification link to finish setup.",
+      submit: "Create with magic link",
+      busy: "Sending link...",
+      hint: "Check your email to verify and finish account setup.",
     },
   },
 };
 
 const state = {
   mode: "login",
-  method: "magic",
   busy: false,
 };
 
 function applyCopy() {
-  const cfg = copy[state.mode][state.method];
+  const cfg = copy[state.mode];
   panelTitle.textContent = cfg.title;
   panelSubtitle.textContent = cfg.subtitle;
   panelNote.textContent = cfg.note;
-  magicHint.textContent = cfg.hint;
-  submitBtn.textContent = cfg.submit;
+  passwordSub.textContent = cfg.password.sub;
+  magicSub.textContent = cfg.magic.sub;
+  magicHint.textContent = cfg.magic.hint;
+  passwordSubmitBtn.textContent = cfg.password.submit;
+  magicSubmitBtn.textContent = cfg.magic.submit;
 
   if (fields.password) {
     fields.password.setAttribute(
@@ -102,26 +104,22 @@ function setMode(mode) {
   focusField?.focus();
 }
 
-function setMethod(method) {
-  state.method = method;
-  body.classList.toggle("method-magic", method === "magic");
-  body.classList.toggle("method-password", method === "password");
-
-  methodMagicBtn.classList.toggle("is-active", method === "magic");
-  methodPasswordBtn.classList.toggle("is-active", method === "password");
-
-  methodMagicBtn.setAttribute("aria-pressed", method === "magic" ? "true" : "false");
-  methodPasswordBtn.setAttribute("aria-pressed", method === "password" ? "true" : "false");
-
-  applyCopy();
-  clearErrors();
-  setMessage("", "");
-}
-
-function setBusy(isBusy) {
+function setBusy(isBusy, method) {
   state.busy = isBusy;
-  submitBtn.disabled = isBusy;
-  submitBtn.textContent = isBusy ? copy[state.mode][state.method].busy : copy[state.mode][state.method].submit;
+  passwordSubmitBtn.disabled = isBusy;
+  magicSubmitBtn.disabled = isBusy;
+
+  if (isBusy) {
+    if (method === "magic") {
+      magicSubmitBtn.textContent = copy[state.mode].magic.busy;
+    } else {
+      passwordSubmitBtn.textContent = copy[state.mode].password.busy;
+    }
+    return;
+  }
+
+  passwordSubmitBtn.textContent = copy[state.mode].password.submit;
+  magicSubmitBtn.textContent = copy[state.mode].magic.submit;
 }
 
 function setMessage(type, text) {
@@ -146,39 +144,39 @@ function setFieldError(fieldKey, text) {
   if (error) error.textContent = text;
 }
 
-function validate() {
+function validate(method) {
   clearErrors();
-
-  const email = fields.email?.value.trim() || "";
-  const password = fields.password?.value || "";
-  const confirmPassword = fields.confirmPassword?.value || "";
 
   let ok = true;
 
-  if (state.mode === "create") {
-    const fullName = fields.fullName?.value.trim() || "";
-    const company = fields.company?.value.trim() || "";
+  if (method === "password") {
+    const email = fields.email?.value.trim() || "";
+    const password = fields.password?.value || "";
+    const confirmPassword = fields.confirmPassword?.value || "";
 
-    if (!fullName) {
-      setFieldError("fullName", "Full name is required.");
+    if (state.mode === "create") {
+      const fullName = fields.fullName?.value.trim() || "";
+      const company = fields.company?.value.trim() || "";
+
+      if (!fullName) {
+        setFieldError("fullName", "Full name is required.");
+        ok = false;
+      }
+
+      if (!company) {
+        setFieldError("company", "Company is required.");
+        ok = false;
+      }
+    }
+
+    if (!email) {
+      setFieldError("email", "Email is required.");
+      ok = false;
+    } else if (!fields.email.checkValidity()) {
+      setFieldError("email", "Use a valid work email.");
       ok = false;
     }
 
-    if (!company) {
-      setFieldError("company", "Company is required.");
-      ok = false;
-    }
-  }
-
-  if (!email) {
-    setFieldError("email", "Email is required.");
-    ok = false;
-  } else if (!fields.email.checkValidity()) {
-    setFieldError("email", "Use a valid work email.");
-    ok = false;
-  }
-
-  if (state.method === "password") {
     if (!password) {
       setFieldError("password", "Password is required.");
       ok = false;
@@ -195,6 +193,16 @@ function validate() {
         setFieldError("confirmPassword", "Passwords do not match.");
         ok = false;
       }
+    }
+  } else {
+    const email = fields.magicEmail?.value.trim() || "";
+
+    if (!email) {
+      setFieldError("magicEmail", "Email is required.");
+      ok = false;
+    } else if (!fields.magicEmail.checkValidity()) {
+      setFieldError("magicEmail", "Use a valid work email.");
+      ok = false;
     }
   }
 
@@ -232,6 +240,12 @@ function getRedirectTo() {
   return new URL(".", window.location.href).href;
 }
 
+function detectMethodFromActive() {
+  const active = document.activeElement;
+  if (active && active.closest("#magicSection")) return "magic";
+  return "password";
+}
+
 async function ensureSessionRedirect() {
   try {
     const { data } = await supabase.auth.getSession();
@@ -247,41 +261,49 @@ async function ensureSessionRedirect() {
 
 modeLoginBtn?.addEventListener("click", () => setMode("login"));
 modeCreateBtn?.addEventListener("click", () => setMode("create"));
-methodMagicBtn?.addEventListener("click", () => setMethod("magic"));
-methodPasswordBtn?.addEventListener("click", () => setMethod("password"));
+
+magicTopBtn?.addEventListener("click", () => {
+  const section = document.getElementById("magicSection");
+  section?.scrollIntoView({ behavior: "smooth", block: "start" });
+  fields.magicEmail?.focus();
+});
 
 form?.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (state.busy) return;
 
+  const method = event.submitter?.dataset.method || detectMethodFromActive();
+
   setMessage("", "");
 
-  if (!validate()) {
+  if (!validate(method)) {
     setMessage("error", "Fix the highlighted fields before continuing.");
     return;
   }
 
-  setBusy(true);
+  setBusy(true, method);
 
   try {
-    const email = fields.email.value.trim();
     let error = null;
 
-    if (state.method === "magic") {
+    if (method === "magic") {
+      const email = fields.magicEmail.value.trim();
       const options = {
         emailRedirectTo: getRedirectTo(),
         shouldCreateUser: state.mode === "create",
       };
 
       if (state.mode === "create") {
-        options.data = {
-          full_name: fields.fullName?.value.trim(),
-          company: fields.company?.value.trim(),
-        };
+        const fullName = fields.fullName?.value.trim() || "";
+        const company = fields.company?.value.trim() || "";
+        if (fullName || company) {
+          options.data = { full_name: fullName, company };
+        }
       }
 
       ({ error } = await supabase.auth.signInWithOtp({ email, options }));
     } else if (state.mode === "create") {
+      const email = fields.email.value.trim();
       const password = fields.password.value;
       const options = {
         data: {
@@ -293,13 +315,14 @@ form?.addEventListener("submit", async (event) => {
 
       ({ error } = await supabase.auth.signUp({ email, password, options }));
     } else {
+      const email = fields.email.value.trim();
       const password = fields.password.value;
       ({ error } = await supabase.auth.signInWithPassword({ email, password }));
     }
 
     if (error) {
-      setMessage("error", formatAuthError(error, state.mode, state.method));
-    } else if (state.method === "magic") {
+      setMessage("error", formatAuthError(error, state.mode, method));
+    } else if (method === "magic") {
       const text =
         state.mode === "login"
           ? "Check your email for your sign-in link."
@@ -311,9 +334,9 @@ form?.addEventListener("submit", async (event) => {
       setMessage("success", "Signed in. Redirecting...");
     }
   } catch (err) {
-    setMessage("error", formatAuthError(err, state.mode, state.method));
+    setMessage("error", formatAuthError(err, state.mode, method));
   } finally {
-    setBusy(false);
+    setBusy(false, method);
   }
 });
 
@@ -325,6 +348,18 @@ form?.addEventListener("input", (event) => {
   if (error) error.textContent = "";
 });
 
+togglePasswordBtn?.addEventListener("click", () => {
+  const passwordField = fields.password;
+  if (!passwordField) return;
+
+  const nextType = passwordField.type === "password" ? "text" : "password";
+  passwordField.type = nextType;
+  if (fields.confirmPassword) fields.confirmPassword.type = nextType;
+
+  togglePasswordBtn.textContent = nextType === "password" ? "Show" : "Hide";
+  togglePasswordBtn.setAttribute("aria-pressed", nextType === "text" ? "true" : "false");
+});
+
 supabase.auth.onAuthStateChange((_event, session) => {
   if (session) {
     window.location.href = "./index.html";
@@ -333,7 +368,5 @@ supabase.auth.onAuthStateChange((_event, session) => {
 
 const params = new URLSearchParams(window.location.search);
 const startMode = params.get("mode") === "create" ? "create" : "login";
-const startMethod = params.get("method") === "password" ? "password" : "magic";
 setMode(startMode);
-setMethod(startMethod);
 ensureSessionRedirect();

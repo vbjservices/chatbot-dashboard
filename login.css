@@ -234,16 +234,9 @@ body::before {
   background: #f4efe6;
   border: 1px solid rgba(226, 216, 203, 0.9);
 }
-.method-label {
-  margin-top: 14px;
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.method-toggle {
-  margin-top: 8px;
+.magic-top-btn {
+  margin-top: 10px;
+  align-self: flex-start;
 }
 
 .toggle-btn {
@@ -458,13 +451,76 @@ body.mode-login [data-mode="create"] {
 body.mode-create [data-mode="login"] {
   display: none;
 }
-
-body.method-magic [data-method="password"] {
-  display: none;
+.section-block {
+  background: #fbfaf8;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
 }
 
-body.method-password [data-method="magic"] {
-  display: none;
+.section-head {
+  display: grid;
+  gap: 4px;
+}
+
+.section-title {
+  font-weight: 700;
+}
+
+.section-sub {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.section-divider {
+  position: relative;
+  text-align: center;
+  margin: 6px 0;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.section-divider::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: rgba(226, 216, 203, 0.9);
+  z-index: 0;
+}
+
+.section-divider span {
+  position: relative;
+  z-index: 1;
+  padding: 0 10px;
+  background: var(--surface);
+}
+
+.magic-block {
+  background: var(--surface-2);
+  border-style: dashed;
+}
+
+.secondary-btn {
+  border: 1px solid rgba(47, 122, 114, 0.35);
+  background: rgba(47, 122, 114, 0.08);
+  color: var(--accent-dark);
+  border-radius: 999px;
+  padding: 12px 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--transition), transform var(--transition);
+}
+
+.secondary-btn:hover {
+  background: rgba(47, 122, 114, 0.18);
+  transform: translateY(-1px);
 }
 
 @keyframes liftIn {
