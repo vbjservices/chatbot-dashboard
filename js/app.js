@@ -361,9 +361,44 @@ function wireUI() {
   const supabaseUrlInput = document.getElementById("supabaseUrlInput");
   const supabaseKeyInput = document.getElementById("supabaseKeyInput");
   const rememberConnection = document.getElementById("rememberConnection");
+  const supabaseUrlToggle = document.getElementById("supabaseUrlToggle");
+  const supabaseKeyToggle = document.getElementById("supabaseKeyToggle");
 
   const latencyP95Btn = document.getElementById("latencyP95Btn");
   const latencyAvgBtn = document.getElementById("latencyAvgBtn");
+
+  function setupSecretToggle(input, button, label) {
+    if (!input || !button) return null;
+    const baseLabel = String(label || "value");
+
+    if (input.type !== "password") input.type = "password";
+    if (input.id) button.setAttribute("aria-controls", input.id);
+
+    const sync = () => {
+      const visible = input.type === "text";
+      button.dataset.visible = visible ? "true" : "false";
+      button.setAttribute("aria-pressed", visible ? "true" : "false");
+      button.setAttribute("aria-label", visible ? `Hide ${baseLabel}` : `Show ${baseLabel}`);
+    };
+
+    button.addEventListener("click", () => {
+      input.type = input.type === "password" ? "text" : "password";
+      sync();
+      input.focus();
+    });
+
+    sync();
+    return {
+      sync,
+      hide: () => {
+        input.type = "password";
+        sync();
+      },
+    };
+  }
+
+  const urlSecret = setupSecretToggle(supabaseUrlInput, supabaseUrlToggle, "Project URL");
+  const keySecret = setupSecretToggle(supabaseKeyInput, supabaseKeyToggle, "Anon key");
 
   if (rangeSelect) state.filters.range = rangeSelect.value;
 
@@ -409,6 +444,8 @@ function wireUI() {
       const { url, anonKey, remember } = getConnection();
       if (supabaseUrlInput) supabaseUrlInput.value = url || "";
       if (supabaseKeyInput) supabaseKeyInput.value = anonKey || "";
+      urlSecret?.hide?.();
+      keySecret?.hide?.();
       if (rememberConnection) rememberConnection.checked = !!remember;
       connectionOverlay.classList.add("is-open");
       connectionOverlay.setAttribute("aria-hidden", "false");

@@ -295,10 +295,66 @@
 
       <div class="connection-body">
         <label class="connection-label" for="supabaseUrlInput">Project URL</label>
-        <input id="supabaseUrlInput" class="connection-input" placeholder="Project URL" />
+        <div class="connection-input-row">
+          <input
+            id="supabaseUrlInput"
+            class="connection-input"
+            placeholder="https://your-project.supabase.co"
+            type="password"
+          />
+          <button
+            class="connection-eye"
+            id="supabaseUrlToggle"
+            type="button"
+            aria-label="Show Project URL"
+            aria-pressed="false"
+            data-visible="false"
+          >
+            <span class="eye-show" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z"></path>
+                <circle cx="12" cy="12" r="3.2"></circle>
+              </svg>
+            </span>
+            <span class="eye-hide" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z"></path>
+                <path d="M4 4l16 16"></path>
+              </svg>
+            </span>
+          </button>
+        </div>
 
         <label class="connection-label" for="supabaseKeyInput">Anon key</label>
-        <input id="supabaseKeyInput" class="connection-input" placeholder="Anon key" />
+        <div class="connection-input-row">
+          <input
+            id="supabaseKeyInput"
+            class="connection-input"
+            placeholder="Anon key (eyJhbGciOi...)"
+            type="password"
+          />
+          <button
+            class="connection-eye"
+            id="supabaseKeyToggle"
+            type="button"
+            aria-label="Show Anon key"
+            aria-pressed="false"
+            data-visible="false"
+          >
+            <span class="eye-show" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z"></path>
+                <circle cx="12" cy="12" r="3.2"></circle>
+              </svg>
+            </span>
+            <span class="eye-hide" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z"></path>
+                <path d="M4 4l16 16"></path>
+              </svg>
+            </span>
+          </button>
+        </div>
 
         <label class="remember-toggle" for="rememberConnection">
           <input type="checkbox" id="rememberConnection" />

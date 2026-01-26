@@ -739,6 +739,49 @@ canvas{
 
 .connection-input::placeholder{ color: rgba(12,26,20,.6); }
 
+.connection-input-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.connection-input-row .connection-input{
+  flex:1;
+}
+
+.connection-eye{
+  appearance:none;
+  width:44px;
+  height:44px;
+  min-width:44px;
+  display:grid;
+  place-items:center;
+  border-radius:12px;
+  border:1px solid rgba(20,36,30,.2);
+  background:#f7faf8;
+  color:#0c1a14;
+  padding:0;
+  cursor:pointer;
+}
+
+.connection-eye:hover{ background:#ffffff; }
+.connection-eye:focus-visible{
+  outline:2px solid rgba(12,26,20,.6);
+  outline-offset:2px;
+}
+
+.connection-eye svg{
+  width:22px;
+  height:22px;
+  display:block;
+}
+
+.connection-eye .eye-show,
+.connection-eye .eye-hide{ display:none; }
+
+.connection-eye[data-visible="false"] .eye-show{ display:block; }
+.connection-eye[data-visible="true"] .eye-hide{ display:block; }
+
 .remember-toggle{
   display:flex;
   align-items:center;
