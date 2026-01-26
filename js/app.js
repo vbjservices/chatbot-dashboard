@@ -541,15 +541,14 @@ function toCSV(rows) {
 function rangeToSinceISO(range) {
   const now = Date.now();
   const day = 24 * 60 * 60 * 1000;
+  if (range == null) return null;
 
-  if (range === "7") return new Date(now - 7 * day).toISOString();
-  if (range === "14") return new Date(now - 14 * day).toISOString();
-  if (range === "30") return new Date(now - 30 * day).toISOString();
-
-  if (range === "7d") return new Date(now - 7 * day).toISOString();
-  if (range === "14d") return new Date(now - 14 * day).toISOString();
-  if (range === "30d") return new Date(now - 30 * day).toISOString();
-  if (range === "90d") return new Date(now - 90 * day).toISOString();
+  const raw = String(range).trim().toLowerCase();
+  const match = raw.match(/^(\d+)\s*d?$/);
+  if (match) {
+    const days = Number(match[1]);
+    if (days > 0) return new Date(now - days * day).toISOString();
+  }
 
   return null;
 }
