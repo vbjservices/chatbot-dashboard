@@ -17,8 +17,8 @@
     <div class="brand">
       <div class="brand-mark" aria-hidden="true"></div>
       <div class="brand-copy">
-        <div class="brand-title">Chatbot Dashboard</div>
-        <div class="brand-sub">Performance intelligence for assistant teams</div>
+        <div class="brand-title">Performance Dashboard</div>
+        <div class="brand-sub">Powered by AI</div>
       </div>
     </div>
 
@@ -26,7 +26,6 @@
       <a href="#overview">Overview</a>
       <a href="#results">Results</a>
       <a href="#calculator">Calculator</a>
-      <a href="#access">Access</a>
     </nav>
 
     <div class="auth-cta">
@@ -106,19 +105,47 @@
         </ul>
       </div>
 
-      <div class="impact-visual" aria-hidden="true">
-        <div class="impact-ring"></div>
-        <div class="impact-ring inner"></div>
-        <div class="impact-icon">AI</div>
-        <div class="impact-tag">Revive</div>
-        <div class="impact-tag alt">Upsell</div>
-        <div class="impact-tag low">Speed</div>
+      <div class="success-wheel" id="successWheel" aria-label="Outcome breakdown">
+        <svg class="wheel-chart" viewBox="0 0 200 200" role="img" aria-label="Success, Support, Lead, Failed rates">
+          <circle class="wheel-bg" cx="100" cy="100" r="72"></circle>
+          <circle class="wheel-seg success" cx="100" cy="100" r="72"></circle>
+          <circle class="wheel-seg support" cx="100" cy="100" r="72"></circle>
+          <circle class="wheel-seg lead" cx="100" cy="100" r="72"></circle>
+          <circle class="wheel-seg failed" cx="100" cy="100" r="72"></circle>
+        </svg>
+        <div class="wheel-center">
+          <div class="wheel-kicker">Assistant outcomes</div>
+          <div class="wheel-main">Success wheel</div>
+          <div class="wheel-sub">Live conversation split</div>
+        </div>
+        <div class="wheel-legend">
+          <div class="legend-item success">
+            <span class="legend-dot" aria-hidden="true"></span>
+            <span>Success</span>
+            <strong>80%</strong>
+          </div>
+          <div class="legend-item support">
+            <span class="legend-dot" aria-hidden="true"></span>
+            <span>Support</span>
+            <strong>10%</strong>
+          </div>
+          <div class="legend-item lead">
+            <span class="legend-dot" aria-hidden="true"></span>
+            <span>Lead</span>
+            <strong>5%</strong>
+          </div>
+          <div class="legend-item failed">
+            <span class="legend-dot" aria-hidden="true"></span>
+            <span>Failed</span>
+            <strong>5%</strong>
+          </div>
+        </div>
       </div>
     </section>
 
     <section class="calculator" id="calculator">
       <div class="section-head">
-        <h2>SEE THE <span class="accent">REAL-TIME</span> IMPACT</h2>
+        <h2>VIEW <span class="accent">REAL-TIME</span> IMPACT</h2>
         <p>Track coverage, speed, and outcomes without extra manual reporting.</p>
       </div>
 
@@ -155,53 +182,6 @@
       </div>
     </section>
 
-    <section class="access-section" id="access">
-      <div class="access-card">
-        <div class="access-badge">Account Access</div>
-        <div class="access-brand">
-          <div class="access-logo" aria-hidden="true"></div>
-          <div>
-            <div class="access-title">Chatbot Dashboard</div>
-            <div class="access-sub">Secure workspace access</div>
-          </div>
-        </div>
-        <h2>Set up secure access to your workspace.</h2>
-        <p>
-          Create an account, confirm your email, and connect your Supabase project.
-          Keep control of your data and access.
-        </p>
-        <ul class="access-list">
-          <li>Have your project URL and anon key ready</li>
-          <li>Verify your work email before first sign in</li>
-          <li>Use password or magic link sign-in</li>
-        </ul>
-
-        <div class="access-steps">
-          <div class="access-step">
-            <div class="step-kicker">1</div>
-            <div>
-              <div class="step-title">Create your account</div>
-              <div class="step-copy">Enter your details and choose a sign-in method.</div>
-            </div>
-          </div>
-          <div class="access-step">
-            <div class="step-kicker">2</div>
-            <div>
-              <div class="step-title">Verify your email</div>
-              <div class="step-copy">Confirm your address before access is enabled.</div>
-            </div>
-          </div>
-          <div class="access-step">
-            <div class="step-kicker">3</div>
-            <div>
-              <div class="step-title">Connect Supabase</div>
-              <div class="step-copy">Add your project URL and anon key inside the dashboard.</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
     <section class="how">
       <div class="section-head center">
         <p class="eyebrow">Here is how</p>
@@ -210,19 +190,22 @@
       <div class="how-grid">
         <div class="how-card">
           <div class="how-number">1</div>
-          <div class="how-icon">WWW</div>
+          <div class="how-icon time-icon">24/7</div>
           <h3>Always on</h3>
           <p>The assistant is available 24/7 without downtime.</p>
         </div>
         <div class="how-card">
           <div class="how-number">2</div>
-          <div class="how-icon">SMS</div>
+          <div class="how-icon eye-icon" aria-hidden="true">
+            <span class="eye-outline"></span>
+            <span class="eye-pupil"></span>
+          </div>
           <h3>Real-time visibility</h3>
           <p>See Assistant and Client messages as they happen.</p>
         </div>
         <div class="how-card">
           <div class="how-number">3</div>
-          <div class="how-icon">$</div>
+          <div class="how-icon dollar-icon">$</div>
           <h3>Lower overhead</h3>
           <p>Reduce costs by over 50% versus a monthly salary.</p>
         </div>
@@ -237,5 +220,31 @@
     <div>Chatbot Dashboard</div>
     <div>Access your analytics in minutes.</div>
   </footer>
+
+  <script>
+    (function () {
+      const wheel = document.getElementById("successWheel");
+      if (!wheel) return;
+
+      if (!("IntersectionObserver" in window)) {
+        wheel.classList.add("is-visible");
+        return;
+      }
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              wheel.classList.add("is-visible");
+              observer.disconnect();
+            }
+          });
+        },
+        { threshold: 0.45 }
+      );
+
+      observer.observe(wheel);
+    })();
+  </script>
 </body>
 </html>
