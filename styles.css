@@ -1003,6 +1003,12 @@ body.overlay-open{
     gap:12px;
   }
 
+  select,
+  input,
+  textarea{
+    font-size:16px;
+  }
+
   .kpi{ padding:12px; }
   .kpi-value{ font-size:22px; line-height:1.05; }
   .kpi-help{ font-size:12px; line-height:1.25; margin-top:6px; overflow-wrap:anywhere; }

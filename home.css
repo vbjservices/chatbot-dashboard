@@ -382,26 +382,20 @@ main {
 }
 
 .impact-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
   display: grid;
   gap: 14px;
 }
 
-.impact-item {
+.impact-list li {
   padding: 14px 16px;
   border-radius: 16px;
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.03);
-}
-
-.impact-item h3 {
-  margin: 0 0 6px;
-  font-size: 16px;
-}
-
-.impact-item p {
-  margin: 0;
   color: var(--muted);
-  font-size: 14px;
+  line-height: 1.6;
 }
 
 .impact-visual {

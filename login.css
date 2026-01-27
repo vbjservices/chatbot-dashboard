@@ -491,6 +491,12 @@ body.mode-create [data-mode="login"] {
   .auth-panel {
     padding: 24px;
   }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 @media (min-width: 980px) {
