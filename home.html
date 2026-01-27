@@ -112,28 +112,33 @@
         <svg class="wheel-chart" viewBox="0 0 200 200" role="img" aria-label="Success, Support, Lead, Failed rates">
           <defs>
             <radialGradient id="grad-success" cx="100" cy="100" r="90" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#22c55e" stop-opacity="0.82"></stop>
-              <stop offset="55%" stop-color="#22c55e" stop-opacity="1"></stop>
-              <stop offset="88%" stop-color="#22c55e" stop-opacity="0.96"></stop>
-              <stop offset="100%" stop-color="#000000" stop-opacity="0.04"></stop>
+              <stop offset="0%" stop-color="#5bff9b" stop-opacity="0.98"></stop>
+              <stop offset="52%" stop-color="#22c55e" stop-opacity="1"></stop>
+              <stop offset="82%" stop-color="#14a34b" stop-opacity="1"></stop>
+              <stop offset="100%" stop-color="#0a2e1a" stop-opacity="0.85"></stop>
             </radialGradient>
+            <linearGradient id="grad-bevel" x1="40" y1="30" x2="165" y2="175" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"></stop>
+              <stop offset="45%" stop-color="#ffffff" stop-opacity="0.12"></stop>
+              <stop offset="100%" stop-color="#000000" stop-opacity="0.35"></stop>
+            </linearGradient>
             <radialGradient id="grad-support" cx="100" cy="100" r="90" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.82"></stop>
-              <stop offset="55%" stop-color="#f59e0b" stop-opacity="1"></stop>
-              <stop offset="88%" stop-color="#f59e0b" stop-opacity="0.96"></stop>
-              <stop offset="100%" stop-color="#000000" stop-opacity="0.04"></stop>
+              <stop offset="0%" stop-color="#ffe0a3" stop-opacity="0.98"></stop>
+              <stop offset="52%" stop-color="#f59e0b" stop-opacity="1"></stop>
+              <stop offset="82%" stop-color="#c97705" stop-opacity="1"></stop>
+              <stop offset="100%" stop-color="#4a2200" stop-opacity="0.85"></stop>
             </radialGradient>
             <radialGradient id="grad-lead" cx="100" cy="100" r="90" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#2fd6c4" stop-opacity="0.82"></stop>
-              <stop offset="55%" stop-color="#2fd6c4" stop-opacity="1"></stop>
-              <stop offset="88%" stop-color="#2fd6c4" stop-opacity="0.96"></stop>
-              <stop offset="100%" stop-color="#000000" stop-opacity="0.04"></stop>
+              <stop offset="0%" stop-color="#8fffee" stop-opacity="0.98"></stop>
+              <stop offset="52%" stop-color="#2fd6c4" stop-opacity="1"></stop>
+              <stop offset="82%" stop-color="#169d8f" stop-opacity="1"></stop>
+              <stop offset="100%" stop-color="#062d2a" stop-opacity="0.85"></stop>
             </radialGradient>
             <radialGradient id="grad-failed" cx="100" cy="100" r="90" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stop-color="#ef4444" stop-opacity="0.82"></stop>
-              <stop offset="55%" stop-color="#ef4444" stop-opacity="1"></stop>
-              <stop offset="88%" stop-color="#ef4444" stop-opacity="0.96"></stop>
-              <stop offset="100%" stop-color="#000000" stop-opacity="0.04"></stop>
+              <stop offset="0%" stop-color="#ff9c9c" stop-opacity="0.98"></stop>
+              <stop offset="52%" stop-color="#ef4444" stop-opacity="1"></stop>
+              <stop offset="82%" stop-color="#c52f2f" stop-opacity="1"></stop>
+              <stop offset="100%" stop-color="#3e0707" stop-opacity="0.85"></stop>
             </radialGradient>
           </defs>
           <circle class="wheel-bg" cx="100" cy="100" r="72"></circle>
@@ -141,6 +146,10 @@
           <circle class="wheel-seg support" cx="100" cy="100" r="72" stroke="url(#grad-support)"></circle>
           <circle class="wheel-seg lead" cx="100" cy="100" r="72" stroke="url(#grad-lead)"></circle>
           <circle class="wheel-seg failed" cx="100" cy="100" r="72" stroke="url(#grad-failed)"></circle>
+          <circle class="wheel-seg bevel success" cx="100" cy="100" r="72" stroke="url(#grad-bevel)"></circle>
+          <circle class="wheel-seg bevel support" cx="100" cy="100" r="72" stroke="url(#grad-bevel)"></circle>
+          <circle class="wheel-seg bevel lead" cx="100" cy="100" r="72" stroke="url(#grad-bevel)"></circle>
+          <circle class="wheel-seg bevel failed" cx="100" cy="100" r="72" stroke="url(#grad-bevel)"></circle>
         </svg>
         <div class="wheel-center">
           <div class="wheel-kicker">Analyze outcomes</div>

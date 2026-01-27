@@ -402,6 +402,12 @@ main {
   transition: stroke-dasharray 1.2s ease;
 }
 
+.wheel-seg.bevel {
+  stroke-width: 10;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 .wheel-seg.success {
   stroke-dashoffset: 0;
   filter:
