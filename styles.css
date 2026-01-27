@@ -983,6 +983,14 @@ body.overlay-open{
   :root{ --sidebar-w: 320px; }
 }
 
+@media (min-width:1200px){
+  .container{
+    max-width:100%;
+    margin:18px auto;
+    padding:0 24px;
+  }
+}
+
 @media (max-width:768px){
   .topbar{ padding:12px 12px; }
 

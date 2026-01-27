@@ -493,6 +493,19 @@ body.mode-create [data-mode="login"] {
   }
 }
 
+@media (min-width: 980px) {
+  .auth-page {
+    align-items: stretch;
+    padding: 32px 40px 60px;
+  }
+
+  .auth-panel {
+    width: min(920px, 100%);
+    min-height: calc(100vh - 120px);
+    align-content: center;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation: none !important;
