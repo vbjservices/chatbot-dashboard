@@ -215,6 +215,9 @@
             <div class="sidebar-user-label">Signed in as</div>
             <div class="sidebar-user-name" id="sidebarUserName">-</div>
             <div class="sidebar-user-email" id="sidebarUserEmail"></div>
+            <div class="sidebar-user-actions">
+              <button class="btn btn-sm" id="setPasswordBtn" type="button">Set password</button>
+            </div>
           </div>
 
           <div class="sidebar-title">Tools</div>
@@ -377,6 +380,48 @@
         </label>
 
         <button class="btn btn-primary connection-save" id="connectionSaveBtn" type="button">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =========================
+       Overlay for setting password
+       ========================= -->
+  <div class="overlay" id="passwordOverlay" aria-hidden="true">
+    <div class="overlay-backdrop" id="passwordOverlayBackdrop"></div>
+
+    <div class="overlay-panel password-panel" role="dialog" aria-modal="true" aria-labelledby="passwordOverlayTitle">
+      <div class="overlay-head">
+        <div class="overlay-title">
+          <div class="overlay-kicker">Account</div>
+          <div id="passwordOverlayTitle">Set password</div>
+        </div>
+
+        <button class="overlay-close" id="passwordOverlayClose" type="button" aria-label="Close password overlay">
+          Close
+        </button>
+      </div>
+
+      <div class="overlay-body">
+        <div class="password-helper">
+          Add a password so you can sign in without a magic link.
+        </div>
+
+        <div class="field">
+          <label for="newPasswordInput">New password</label>
+          <input id="newPasswordInput" type="password" placeholder="At least 8 characters" />
+        </div>
+
+        <div class="field">
+          <label for="confirmPasswordInput">Confirm password</label>
+          <input id="confirmPasswordInput" type="password" placeholder="Repeat your password" />
+        </div>
+
+        <div class="password-message" id="passwordMessage" role="status" aria-live="polite"></div>
+
+        <div class="password-actions">
+          <button class="btn btn-primary" id="savePasswordBtn" type="button">Save password</button>
+        </div>
       </div>
     </div>
   </div>

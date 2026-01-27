@@ -16,6 +16,8 @@ const passwordSubmitBtn = document.getElementById("passwordSubmitBtn");
 const magicSubmitBtn = document.getElementById("magicSubmitBtn");
 const togglePasswordBtn = document.getElementById("togglePassword");
 const messageEl = document.getElementById("formMessage");
+const passwordInlineMessage = document.getElementById("passwordInlineMessage");
+const magicInlineMessage = document.getElementById("magicInlineMessage");
 
 const fields = {
   fullName: document.getElementById("fullName"),
@@ -66,6 +68,8 @@ const state = {
   busy: false,
 };
 
+let pendingRedirect = false;
+
 function applyCopy() {
   const cfg = copy[state.mode];
   panelTitle.textContent = cfg.title;
@@ -98,6 +102,7 @@ function setMode(mode) {
 
   applyCopy();
   clearErrors();
+  clearInlineMessages();
   setMessage("", "");
 
   const focusField = mode === "create" ? fields.fullName : fields.email;
@@ -125,6 +130,33 @@ function setBusy(isBusy, method) {
 function setMessage(type, text) {
   messageEl.textContent = text;
   messageEl.className = "form-message" + (type ? ` ${type}` : "");
+}
+
+function setInlineMessage(method, type, text) {
+  const isMagic = method === "magic";
+  const activeEl = isMagic ? magicInlineMessage : passwordInlineMessage;
+  const otherEl = isMagic ? passwordInlineMessage : magicInlineMessage;
+
+  if (activeEl) {
+    activeEl.textContent = text || "";
+    activeEl.className = "inline-message" + (type ? ` ${type}` : "");
+  }
+
+  if (otherEl) {
+    otherEl.textContent = "";
+    otherEl.className = "inline-message";
+  }
+}
+
+function clearInlineMessages() {
+  if (passwordInlineMessage) {
+    passwordInlineMessage.textContent = "";
+    passwordInlineMessage.className = "inline-message";
+  }
+  if (magicInlineMessage) {
+    magicInlineMessage.textContent = "";
+    magicInlineMessage.className = "inline-message";
+  }
 }
 
 function clearErrors() {
@@ -215,7 +247,7 @@ function formatAuthError(error, mode, method) {
     return "Login failed. Incorrect email or password.";
   }
   if (raw.includes("already registered")) {
-    return "Account already exists. Switch to Sign in.";
+    return "An account has already been created with this email.";
   }
   if (raw.includes("confirm") && raw.includes("email")) {
     return "Check your email to confirm your account.";
@@ -280,9 +312,13 @@ form?.addEventListener("submit", async (event) => {
   const method = event.submitter?.dataset.method || detectMethodFromActive();
 
   setMessage("", "");
+  setInlineMessage(method, "", "");
+  pendingRedirect = method === "password";
 
   if (!validate(method)) {
     setMessage("error", "Fix the highlighted fields before continuing.");
+    setInlineMessage(method, "error", "Fix the highlighted fields before continuing.");
+    pendingRedirect = false;
     return;
   }
 
@@ -314,6 +350,7 @@ form?.addEventListener("submit", async (event) => {
         data: {
           full_name: fields.fullName?.value.trim(),
           company: fields.company?.value.trim(),
+          has_password: true,
         },
         emailRedirectTo: getRedirectTo(),
       };
@@ -327,6 +364,8 @@ form?.addEventListener("submit", async (event) => {
 
     if (error) {
       setMessage("error", formatAuthError(error, state.mode, method));
+      setInlineMessage(method, "error", formatAuthError(error, state.mode, method));
+      pendingRedirect = false;
       if (method === "password" && state.mode === "login" && isInvalidCredentials(error)) {
         setFieldError("email", "Check your email.");
         setFieldError("password", "Incorrect password.");
@@ -337,13 +376,28 @@ form?.addEventListener("submit", async (event) => {
           ? "Check your email for your sign-in link."
           : "Check your email to verify and finish account setup.";
       setMessage("success", text);
+      setInlineMessage("magic", "success", text);
     } else if (state.mode === "create") {
       setMessage("success", "Account created. Check your email to confirm before signing in.");
+      setInlineMessage("password", "success", "Account created. Check your email to confirm before signing in.");
     } else {
+      if (method === "password") {
+        try {
+          await supabase.auth.updateUser({ data: { has_password: true } });
+        } catch (err) {
+          console.warn("Failed to backfill has_password:", err);
+        }
+        setMessage("success", "Signed in. Redirecting...");
+        setInlineMessage("password", "success", "Signed in. Redirecting...");
+        window.location.href = "./index.html";
+        return;
+      }
       setMessage("success", "Signed in. Redirecting...");
+      setInlineMessage(method, "success", "Signed in. Redirecting...");
     }
   } catch (err) {
     setMessage("error", formatAuthError(err, state.mode, method));
+    setInlineMessage(method, "error", formatAuthError(err, state.mode, method));
   } finally {
     setBusy(false, method);
   }
@@ -355,6 +409,9 @@ form?.addEventListener("input", (event) => {
   field.classList.remove("error");
   const error = field.querySelector(".field-error");
   if (error) error.textContent = "";
+
+  const inMagic = !!event.target?.closest("#magicSection");
+  setInlineMessage(inMagic ? "magic" : "password", "", "");
 });
 
 togglePasswordBtn?.addEventListener("click", () => {
@@ -372,7 +429,7 @@ togglePasswordBtn?.addEventListener("click", () => {
 });
 
 supabase.auth.onAuthStateChange((_event, session) => {
-  if (session) {
+  if (session && !pendingRedirect) {
     window.location.href = "./index.html";
   }
 });

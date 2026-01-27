@@ -46,6 +46,7 @@ const state = {
   source: "—",
 
   userId: null,
+  userHasPassword: false,
 };
 
 init().catch((err) => {
@@ -100,6 +101,7 @@ async function hydrateConnectionFromProfile(user) {
 async function hydrateSidebarUser() {
   const nameEl = document.getElementById("sidebarUserName");
   const emailEl = document.getElementById("sidebarUserEmail");
+  const setPasswordBtn = document.getElementById("setPasswordBtn");
   if (!nameEl) return;
 
   try {
@@ -108,10 +110,12 @@ async function hydrateSidebarUser() {
     if (!user) {
       nameEl.textContent = "-";
       if (emailEl) emailEl.textContent = "";
+      if (setPasswordBtn) setPasswordBtn.hidden = true;
       return;
     }
 
     const meta = user.user_metadata || {};
+    state.userHasPassword = meta.has_password === true;
     const name = meta.full_name || meta.name || user.email || "-";
     const email = user.email || "";
 
@@ -125,10 +129,13 @@ async function hydrateSidebarUser() {
         emailEl.style.display = "block";
       }
     }
+
+    if (setPasswordBtn) setPasswordBtn.hidden = state.userHasPassword;
   } catch (err) {
     console.warn("Failed to load user profile:", err);
     nameEl.textContent = "-";
     if (emailEl) emailEl.textContent = "";
+    if (setPasswordBtn) setPasswordBtn.hidden = true;
   }
 }
 
@@ -432,6 +439,14 @@ function wireUI() {
   const rememberConnection = document.getElementById("rememberConnection");
   const supabaseUrlToggle = document.getElementById("supabaseUrlToggle");
   const supabaseKeyToggle = document.getElementById("supabaseKeyToggle");
+  const setPasswordBtn = document.getElementById("setPasswordBtn");
+  const passwordOverlay = document.getElementById("passwordOverlay");
+  const passwordBackdrop = document.getElementById("passwordOverlayBackdrop");
+  const passwordClose = document.getElementById("passwordOverlayClose");
+  const savePasswordBtn = document.getElementById("savePasswordBtn");
+  const newPasswordInput = document.getElementById("newPasswordInput");
+  const confirmPasswordInput = document.getElementById("confirmPasswordInput");
+  const passwordMessage = document.getElementById("passwordMessage");
 
   const latencyP95Btn = document.getElementById("latencyP95Btn");
   const latencyAvgBtn = document.getElementById("latencyAvgBtn");
@@ -468,6 +483,12 @@ function wireUI() {
 
   const urlSecret = setupSecretToggle(supabaseUrlInput, supabaseUrlToggle, "Project URL");
   const keySecret = setupSecretToggle(supabaseKeyInput, supabaseKeyToggle, "Anon key");
+
+  const setPasswordMessage = (type, text) => {
+    if (!passwordMessage) return;
+    passwordMessage.textContent = text || "";
+    passwordMessage.className = "password-message" + (type ? ` ${type}` : "");
+  };
 
   if (rangeSelect) state.filters.range = rangeSelect.value;
 
@@ -552,6 +573,68 @@ function wireUI() {
     connectionSave?.addEventListener("click", saveConnection);
     window.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeConnectionOverlay();
+    });
+  }
+
+  if (setPasswordBtn && passwordOverlay) {
+    const openPasswordOverlay = () => {
+      if (state.userHasPassword) return;
+      if (newPasswordInput) newPasswordInput.value = "";
+      if (confirmPasswordInput) confirmPasswordInput.value = "";
+      setPasswordMessage("", "");
+      passwordOverlay.classList.add("is-open");
+      passwordOverlay.setAttribute("aria-hidden", "false");
+      document.body.classList.add("overlay-open");
+      newPasswordInput?.focus?.();
+    };
+
+    const closePasswordOverlay = () => {
+      passwordOverlay.classList.remove("is-open");
+      passwordOverlay.setAttribute("aria-hidden", "true");
+      const connectionOpen = connectionOverlay?.classList.contains("is-open");
+      const drill = document.getElementById("drillOverlay");
+      const drillOpen = drill?.classList.contains("is-open");
+      if (!connectionOpen && !drillOpen) document.body.classList.remove("overlay-open");
+    };
+
+    const savePassword = async () => {
+      const password = newPasswordInput?.value || "";
+      const confirm = confirmPasswordInput?.value || "";
+
+      if (!password || password.length < 8) {
+        setPasswordMessage("error", "Use at least 8 characters.");
+        return;
+      }
+      if (password !== confirm) {
+        setPasswordMessage("error", "Passwords do not match.");
+        return;
+      }
+
+      setPasswordMessage("", "Saving...");
+      try {
+        const { error } = await supabase.auth.updateUser({
+          password,
+          data: { has_password: true },
+        });
+        if (error) {
+          setPasswordMessage("error", error.message || "Unable to set password.");
+          return;
+        }
+        state.userHasPassword = true;
+        if (setPasswordBtn) setPasswordBtn.hidden = true;
+        setPasswordMessage("success", "Password saved. You can now sign in with it.");
+        setTimeout(closePasswordOverlay, 700);
+      } catch (err) {
+        setPasswordMessage("error", err?.message || "Unable to set password.");
+      }
+    };
+
+    setPasswordBtn.addEventListener("click", openPasswordOverlay);
+    passwordBackdrop?.addEventListener("click", closePasswordOverlay);
+    passwordClose?.addEventListener("click", closePasswordOverlay);
+    savePasswordBtn?.addEventListener("click", savePassword);
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closePasswordOverlay();
     });
   }
 
