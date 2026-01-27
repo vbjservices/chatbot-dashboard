@@ -1,7 +1,7 @@
 // app.js
 import { ENV_LABEL } from "./config.js";
 import { getConnection, setConnection, hasConnection, setConnectionScope, clearConnection } from "./connection.js";
-import { readCache, writeCache, buildCacheMeta } from "./storage.js";
+import { readCache, writeCache, clearCache, buildCacheMeta } from "./storage.js";
 import { fetchSupabaseRows, fetchChatbotStatus } from "./supabase.js";
 import { normalizeChatEvent, groupTurnsToConversations } from "./normalize.js";
 import { supabase } from "./auth.js";
@@ -504,6 +504,7 @@ function wireUI() {
   if (signOutBtn) {
     signOutBtn.addEventListener("click", async () => {
       try {
+        clearCache({ scope: state.userId });
         clearConnection();
         await supabase.auth.signOut();
       } catch (err) {
