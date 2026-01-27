@@ -847,6 +847,15 @@ main {
   font-size: 34px;
   font-weight: 700;
   letter-spacing: 0;
+  perspective: 600px;
+}
+
+.how-icon.dollar-icon .dollar-mark {
+  display: inline-block;
+  animation: dollar-spin 4.2s linear infinite;
+  transform-origin: center;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
 }
 
 .how-icon.eye-icon {
@@ -903,14 +912,26 @@ main {
 }
 
 @keyframes eye-scan {
-  0%, 100% {
+  0%, 25%, 100% {
     transform: translate(-50%, -50%);
   }
-  35% {
+  45% {
     transform: translate(-90%, -50%);
   }
-  70% {
+  75% {
     transform: translate(-10%, -50%);
+  }
+}
+
+@keyframes dollar-spin {
+  0%, 18% {
+    transform: rotateY(0deg);
+  }
+  60% {
+    transform: rotateY(720deg);
+  }
+  80%, 100% {
+    transform: rotateY(720deg);
   }
 }
 
