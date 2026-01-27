@@ -628,33 +628,48 @@ main {
   margin-bottom: 16px;
 }
 
-.calc-slider {
-  position: relative;
-  height: 32px;
-  margin-bottom: 14px;
+.calc-range {
+  width: 100%;
+  appearance: none;
+  background: transparent;
+  margin: 4px 0 14px;
 }
 
-.calc-slider .track {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
+.calc-range::-webkit-slider-runnable-track {
   height: 4px;
   background: rgba(47, 214, 196, 0.25);
-  transform: translateY(-50%);
   border-radius: 999px;
 }
 
-.calc-slider .thumb {
-  position: absolute;
-  top: 50%;
+.calc-range::-webkit-slider-thumb {
+  appearance: none;
   width: 18px;
   height: 18px;
   border-radius: 50%;
   background: #0c1518;
   border: 2px solid var(--accent);
-  transform: translate(-50%, -50%);
-  box-shadow: 0 0 12px rgba(47, 214, 196, 0.5);
+  box-shadow: 0 0 12px rgba(47, 214, 196, 0.45);
+  margin-top: -7px;
+}
+
+.calc-range:focus-visible {
+  outline: 2px solid rgba(47, 214, 196, 0.4);
+  outline-offset: 4px;
+}
+
+.calc-range::-moz-range-track {
+  height: 4px;
+  background: rgba(47, 214, 196, 0.25);
+  border-radius: 999px;
+}
+
+.calc-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #0c1518;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 12px rgba(47, 214, 196, 0.45);
 }
 
 .calc-value {
@@ -838,9 +853,67 @@ main {
 }
 
 .how-icon.time-icon {
+  position: relative;
+  overflow: hidden;
+}
+
+.how-icon.time-icon .time-text,
+.how-icon.time-icon .clock-icon {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.how-icon.time-icon .time-text {
   font-size: 16px;
   letter-spacing: 0.12em;
   font-weight: 700;
+  animation: time-text-swap 4.8s ease-in-out infinite;
+}
+
+.how-icon.time-icon .clock-wrap {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  animation: time-clock-swap 4.8s ease-in-out infinite;
+}
+
+.how-icon.time-icon .clock-face {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  animation: clock-swirl 4.8s ease-in-out infinite;
+}
+
+.how-icon.time-icon .clock-icon {
+  width: 34px;
+  height: 34px;
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  filter: brightness(0) saturate(100%) invert(78%) sepia(24%) saturate(520%)
+    hue-rotate(126deg) brightness(98%) contrast(92%);
+}
+
+.how-icon.time-icon .clock-hand {
+  position: absolute;
+  width: 2px;
+  height: 12px;
+  background: var(--accent);
+  border-radius: 999px;
+  top: 50%;
+  left: 50%;
+  transform-origin: bottom center;
+  transform: translate(-50%, -100%) rotate(0deg);
+  animation: clock-hand 6s linear infinite;
+  box-shadow: 0 0 6px rgba(47, 214, 196, 0.5);
 }
 
 .how-icon.dollar-icon {
@@ -868,21 +941,29 @@ main {
   height: auto;
   display: block;
   pointer-events: none;
+  transform-origin: center;
+  animation: eye-squeeze 6s ease-in-out infinite;
   filter: brightness(0) saturate(100%) invert(78%) sepia(24%) saturate(520%)
     hue-rotate(126deg) brightness(98%) contrast(92%);
 }
 
 .how-icon.eye-icon .eye-pupil {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -20%);
-  animation: eye-scan 3.8s ease-in-out infinite;
+  animation: eye-scan 6s ease-in-out infinite;
 }
+
+.how-icon.eye-icon .pupil-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: block;
+  animation: eye-squeeze 6s ease-in-out infinite;
+}
+
 
 .how-card h3 {
   margin: 0 0 8px;
@@ -912,14 +993,89 @@ main {
 }
 
 @keyframes eye-scan {
-  0%, 25%, 100% {
-    transform: translate(-50%, -50%);
+  0%, 30%, 100% {
+    transform: translate(-50%, -20%);
   }
   45% {
-    transform: translate(-90%, -50%);
+    transform: translate(-90%, -20%);
+  }
+  65% {
+    transform: translate(-10%, -20%);
   }
   75% {
-    transform: translate(-10%, -50%);
+    transform: translate(-50%, -20%);
+  }
+}
+
+@keyframes eye-squeeze {
+  0%, 80%, 100% {
+    transform: scaleY(1);
+  }
+  84% {
+    transform: scaleY(0.2);
+  }
+  88% {
+    transform: scaleY(1);
+  }
+}
+
+
+@keyframes time-text-swap {
+  0% {
+    opacity: 0;
+    transform: rotate(180deg) scale(0.6);
+  }
+  15% {
+    opacity: 1;
+    transform: rotate(360deg) scale(1);
+  }
+  45% {
+    opacity: 1;
+    transform: rotate(360deg) scale(1);
+  }
+  55% {
+    opacity: 0;
+    transform: rotate(540deg) scale(0.6);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(540deg) scale(0.6);
+  }
+}
+
+@keyframes time-clock-swap {
+  0%, 50% {
+    opacity: 0;
+  }
+  60%, 90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes clock-swirl {
+  0%, 50% {
+    transform: rotate(180deg) scale(0.6);
+  }
+  60% {
+    transform: rotate(360deg) scale(1);
+  }
+  90% {
+    transform: rotate(360deg) scale(1);
+  }
+  100% {
+    transform: rotate(540deg) scale(0.6);
+  }
+}
+
+@keyframes clock-hand {
+  0% {
+    transform: translate(-50%, -100%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -100%) rotate(360deg);
   }
 }
 

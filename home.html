@@ -177,34 +177,36 @@
 
       <div class="calc-grid">
         <div class="calc-card">
-          <div class="calc-title">New conversations this month</div>
-          <div class="calc-slider">
-            <span class="track"></span>
-            <span class="thumb" style="left:8%"></span>
-          </div>
-          <div class="calc-value">5,000</div>
+          <div class="calc-title">Reply cost per support employee</div>
+          <input
+            class="calc-range"
+            id="dailyCostRange"
+            type="range"
+            min="1"
+            max="20"
+            step="1"
+            value="8"
+          />
+          <div class="calc-value" id="dailyCostValue">$8</div>
         </div>
         <div class="calc-card">
-          <div class="calc-title">Active client threads</div>
-          <div class="calc-slider">
-            <span class="track"></span>
-            <span class="thumb" style="left:18%"></span>
-          </div>
-          <div class="calc-value">5,000</div>
-        </div>
-        <div class="calc-card">
-          <div class="calc-title">Archived conversations</div>
-          <div class="calc-slider">
-            <span class="track"></span>
-            <span class="thumb" style="left:12%"></span>
-          </div>
-          <div class="calc-value">50,000</div>
+          <div class="calc-title">Conversations this month</div>
+          <input
+            class="calc-range"
+            id="conversationRange"
+            type="range"
+            min="100"
+            max="5000"
+            step="50"
+            value="2500"
+          />
+          <div class="calc-value" id="conversationValue">2,500</div>
         </div>
         <div class="calc-card highlight">
-          <div class="calc-title">Monthly cost advantage</div>
-          <div class="calc-value">50%+</div>
-          <div class="calc-note">Compared to a single employee salary.</div>
+          <div class="calc-title">Total saved</div>
+          <div class="calc-value" id="outcomeValue">$0</div>
         </div>
+
       </div>
     </section>
 
@@ -216,7 +218,15 @@
       <div class="how-grid">
         <div class="how-card">
           <div class="how-number">1</div>
-          <div class="how-icon time-icon">24/7</div>
+          <div class="how-icon time-icon" aria-hidden="true">
+            <span class="time-text">24/7</span>
+            <span class="clock-wrap">
+              <span class="clock-face">
+                <img class="clock-icon" src="./assets/Clock_Icon.png" alt="" />
+                <span class="clock-hand"></span>
+              </span>
+            </span>
+          </div>
           <h3>Always on</h3>
           <p>The assistant is available 24/7 without downtime.</p>
         </div>
@@ -224,7 +234,7 @@
           <div class="how-number">2</div>
           <div class="how-icon eye-icon" aria-hidden="true">
             <img class="eye-base" src="./assets/Eye_Icon.png" alt="" />
-            <span class="eye-pupil"></span>
+            <span class="eye-pupil"><span class="pupil-dot"></span></span>
           </div>
           <h3>Real-time visibility</h3>
           <p>See Assistant and Client messages as they happen.</p>
@@ -232,8 +242,8 @@
         <div class="how-card">
           <div class="how-number">3</div>
           <div class="how-icon dollar-icon"><span class="dollar-mark">$</span></div>
-          <h3>Lower overhead</h3>
-          <p>Reduce costs by over 50% versus a monthly salary.</p>
+          <h3>Lower expenses</h3>
+          <p>Reduce costs by over 83% versus an employee.</p>
         </div>
       </div>
       <div class="how-cta">
@@ -269,7 +279,46 @@
         { threshold: 0.45 }
       );
 
+
       observer.observe(wheel);
+    })();
+
+    (function () {
+      const dailyRange = document.getElementById("dailyCostRange");
+      const convoRange = document.getElementById("conversationRange");
+      const dailyValue = document.getElementById("dailyCostValue");
+      const convoValue = document.getElementById("conversationValue");
+      const outcomeValue = document.getElementById("outcomeValue");
+      if (!dailyRange || !convoRange || !dailyValue || !convoValue || !outcomeValue) return;
+
+      const AVG_CHATBOT_COST = 0.35;
+
+      const formatMoney = (value) =>
+        value.toLocaleString("en-US", {
+          style: "currency",
+          currency: "USD",
+          maximumFractionDigits: 2,
+        });
+
+      const formatNumber = (value) => value.toLocaleString("en-US");
+
+      const update = () => {
+        const dailyCost = Number(dailyRange.value);
+        const conversations = Number(convoRange.value);
+
+        dailyValue.textContent = `$${dailyCost}`;
+        convoValue.textContent = formatNumber(conversations);
+
+        const humanCost = dailyCost * conversations;
+        const botCost = AVG_CHATBOT_COST * conversations;
+        const outcome = humanCost - botCost;
+
+        outcomeValue.textContent = formatMoney(outcome);
+      };
+
+      dailyRange.addEventListener("input", update);
+      convoRange.addEventListener("input", update);
+      update();
     })();
 
     (function () {
