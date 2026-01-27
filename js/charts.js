@@ -1,5 +1,6 @@
 // charts.js
 // Requires Chart.js global (as loaded in index.html)
+import { toISODateKey, fromISODateKeyToDMY } from "./utils/date.js";
 
 const charts = new Map();
 
@@ -583,23 +584,6 @@ function bucketByDay(items) {
   const keys = Array.from(map.keys()).sort();
   const labels = keys.map(fromISODateKeyToDMY);
   return { keys, labels, counts: keys.map(k => map.get(k).count) };
-}
-
-function toISODateKey(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function fromISODateKeyToDMY(key) {
-  const s = String(key || "");
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-  if (!m) return s;
-  const dd = m[3];
-  const mm = m[2];
-  const yyyy = m[1];
-  return `${dd}/${mm}/${yyyy}`;
 }
 
 /**

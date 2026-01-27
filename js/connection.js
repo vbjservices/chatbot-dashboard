@@ -1,13 +1,15 @@
 // connection.js
 import { CONNECTION_STORAGE_KEY } from "./config.js";
 
-const memoryState = {
+let memoryState = {
   url: "",
   anonKey: "",
   remember: false,
 };
 
 let loaded = false;
+let activeScope = "";
+let loadedScope = "";
 
 function normalizeUrl(raw) {
   const t = String(raw || "").trim();
@@ -15,12 +17,23 @@ function normalizeUrl(raw) {
   return t.endsWith("/") ? t.slice(0, -1) : t;
 }
 
+function normalizeScope(scope) {
+  return String(scope || "").trim();
+}
+
+function storageKey() {
+  return activeScope ? `${CONNECTION_STORAGE_KEY}:${activeScope}` : CONNECTION_STORAGE_KEY;
+}
+
 function loadFromStorage() {
-  if (loaded) return;
+  if (loaded && loadedScope === activeScope) return;
   loaded = true;
+  loadedScope = activeScope;
+
+  memoryState = { url: "", anonKey: "", remember: false };
 
   try {
-    const raw = localStorage.getItem(CONNECTION_STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey());
     if (!raw) return;
     const parsed = JSON.parse(raw);
 
@@ -30,6 +43,15 @@ function loadFromStorage() {
   } catch {
     // ignore storage errors
   }
+}
+
+export function setConnectionScope(scope) {
+  const nextScope = normalizeScope(scope);
+  if (nextScope === activeScope) return;
+  activeScope = nextScope;
+  loaded = false;
+  loadedScope = "";
+  memoryState = { url: "", anonKey: "", remember: false };
 }
 
 export function loadConnection() {
@@ -51,9 +73,9 @@ export function setConnection({ url, anonKey, remember = false } = {}) {
 
   try {
     if (memoryState.remember && memoryState.url && memoryState.anonKey) {
-      localStorage.setItem(CONNECTION_STORAGE_KEY, JSON.stringify(memoryState));
+      localStorage.setItem(storageKey(), JSON.stringify(memoryState));
     } else {
-      localStorage.removeItem(CONNECTION_STORAGE_KEY);
+      localStorage.removeItem(storageKey());
     }
   } catch {
     // ignore storage errors
@@ -65,4 +87,16 @@ export function setConnection({ url, anonKey, remember = false } = {}) {
 export function hasConnection() {
   const { url, anonKey } = getConnection();
   return Boolean(url && anonKey);
+}
+
+export function clearConnection() {
+  try {
+    localStorage.removeItem(storageKey());
+  } catch {
+    // ignore storage errors
+  }
+  memoryState = { url: "", anonKey: "", remember: false };
+  loaded = false;
+  loadedScope = "";
+  return { ...memoryState };
 }

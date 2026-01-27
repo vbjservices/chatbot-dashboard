@@ -1,6 +1,6 @@
 // app.js
 import { ENV_LABEL } from "./config.js";
-import { getConnection, setConnection, hasConnection } from "./connection.js";
+import { getConnection, setConnection, hasConnection, setConnectionScope, clearConnection } from "./connection.js";
 import { readCache, writeCache, buildCacheMeta } from "./storage.js";
 import { fetchSupabaseRows, fetchChatbotStatus } from "./supabase.js";
 import { normalizeChatEvent, groupTurnsToConversations } from "./normalize.js";
@@ -21,6 +21,7 @@ import {
   openDrilldownOverlay,
 } from "./ui.js";
 import { renderCharts, destroyCharts } from "./charts.js";
+import { toISODateKey } from "./utils/date.js";
 
 const state = {
   rows: [],
@@ -43,6 +44,8 @@ const state = {
 
   lastLoadedAt: null,
   source: "—",
+
+  userId: null,
 };
 
 init().catch((err) => {
@@ -52,9 +55,10 @@ init().catch((err) => {
 /* ---------------- init ---------------- */
 
 async function init() {
-  const authed = await ensureAuthenticated();
-  if (!authed) return;
+  const user = await ensureAuthenticated();
+  if (!user) return;
 
+  await hydrateConnectionFromProfile(user);
   await hydrateSidebarUser();
 
   setEnvLabel(ENV_LABEL);
@@ -68,12 +72,29 @@ async function init() {
 async function ensureAuthenticated() {
   try {
     const { data } = await supabase.auth.getSession();
-    if (data?.session) return true;
+    const user = data?.session?.user;
+    if (user) {
+      state.userId = user.id || null;
+      if (state.userId) setConnectionScope(state.userId);
+      return user;
+    }
   } catch (err) {
     console.warn("Auth session check failed:", err);
   }
   window.location.href = "./login.html";
-  return false;
+  return null;
+}
+
+async function hydrateConnectionFromProfile(user) {
+  if (!user || hasConnection()) return;
+
+  const meta = user.user_metadata || {};
+  const url = meta.supabase_url || meta.supabaseUrl || "";
+  const anonKey = meta.supabase_anon_key || meta.supabaseAnonKey || meta.supabaseKey || "";
+
+  if (url && anonKey) {
+    setConnection({ url, anonKey, remember: true });
+  }
 }
 
 async function hydrateSidebarUser() {
@@ -153,7 +174,8 @@ async function loadData({ preferNetwork = true } = {}) {
 
       writeCache(
         { turns: state.turns },
-        buildCacheMeta({ source: "Supabase", rowCount: state.rows.length, sinceISO })
+        buildCacheMeta({ source: "Supabase", rowCount: state.rows.length, sinceISO }),
+        { scope: state.userId }
       );
 
       setStatusPill("Connected");
@@ -179,7 +201,7 @@ async function loadData({ preferNetwork = true } = {}) {
     }
   }
 
-  const cached = readCache();
+  const cached = readCache({ scope: state.userId });
   if (cached?.data?.turns?.length) {
     state.rows = [];
     state.turns = cached.data.turns;
@@ -390,13 +412,6 @@ function drillTurns({ kind, key, label }) {
   return [];
 }
 
-function toISODateKey(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
 /* ---------------- UI wiring ---------------- */
 
 function wireUI() {
@@ -489,6 +504,7 @@ function wireUI() {
   if (signOutBtn) {
     signOutBtn.addEventListener("click", async () => {
       try {
+        clearConnection();
         await supabase.auth.signOut();
       } catch (err) {
         console.warn("Sign out failed:", err);
@@ -525,6 +541,7 @@ function wireUI() {
       const anonKey = supabaseKeyInput?.value || "";
       const remember = !!rememberConnection?.checked;
       setConnection({ url, anonKey, remember });
+      persistConnectionToProfile({ url, anonKey, remember });
       closeConnectionOverlay();
       loadData({ preferNetwork: true });
     };
@@ -657,4 +674,28 @@ function uniq(arr) {
 function pickVersion(turns) {
   const v = turns.find((t) => t.bot_key)?.bot_key;
   return v || "—";
+}
+
+async function persistConnectionToProfile({ url, anonKey, remember } = {}) {
+  try {
+    if (remember) {
+      if (!url || !anonKey) return;
+      await supabase.auth.updateUser({
+        data: {
+          supabase_url: url,
+          supabase_anon_key: anonKey,
+        },
+      });
+      return;
+    }
+
+    await supabase.auth.updateUser({
+      data: {
+        supabase_url: "",
+        supabase_anon_key: "",
+      },
+    });
+  } catch (err) {
+    console.warn("Failed to store connection in profile:", err);
+  }
 }

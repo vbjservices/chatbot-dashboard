@@ -1,10 +1,21 @@
 // storage.js
 import { CACHE_DATA_KEY, CACHE_META_KEY } from "./config.js";
 
-export function readCache() {
+function normalizeScope(scope) {
+  return String(scope || "").trim();
+}
+
+function scopedKey(base, scope) {
+  const s = normalizeScope(scope);
+  return s ? `${base}:${s}` : base;
+}
+
+export function readCache({ scope } = {}) {
   try {
-    const rawData = localStorage.getItem(CACHE_DATA_KEY);
-    const rawMeta = localStorage.getItem(CACHE_META_KEY);
+    const dataKey = scopedKey(CACHE_DATA_KEY, scope);
+    const metaKey = scopedKey(CACHE_META_KEY, scope);
+    const rawData = localStorage.getItem(dataKey);
+    const rawMeta = localStorage.getItem(metaKey);
     if (!rawData) return { data: null, meta: null };
 
     const data = JSON.parse(rawData);
@@ -15,10 +26,24 @@ export function readCache() {
   }
 }
 
-export function writeCache(data, meta = {}) {
+export function writeCache(data, meta = {}, { scope } = {}) {
   try {
-    localStorage.setItem(CACHE_DATA_KEY, JSON.stringify(data));
-    localStorage.setItem(CACHE_META_KEY, JSON.stringify(meta));
+    const dataKey = scopedKey(CACHE_DATA_KEY, scope);
+    const metaKey = scopedKey(CACHE_META_KEY, scope);
+    localStorage.setItem(dataKey, JSON.stringify(data));
+    localStorage.setItem(metaKey, JSON.stringify(meta));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function clearCache({ scope } = {}) {
+  try {
+    const dataKey = scopedKey(CACHE_DATA_KEY, scope);
+    const metaKey = scopedKey(CACHE_META_KEY, scope);
+    localStorage.removeItem(dataKey);
+    localStorage.removeItem(metaKey);
     return true;
   } catch {
     return false;
