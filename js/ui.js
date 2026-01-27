@@ -3,6 +3,7 @@
 let lastStatus = null;
 let lastChatbotStatus = null;
 let dbWasDisconnected = false;
+let assistantWasDisconnected = false;
 const toastTimers = new Map();
 
 export function setStatusPill(status, detail = "") {
@@ -124,10 +125,16 @@ export function setChatbotPill(status, detail = "") {
   el.textContent = detail ? `Assistant: ${status} (${detail})` : `Assistant: ${status}`;
 
   const isDisconnected = status === "Disconnected" || status === "Offline";
-  if (isDisconnected && lastChatbotStatus !== status) {
-    showToast("Assistant not connected", { variant: "warn", key: "assistant" });
+  if (isDisconnected) {
+    if (lastChatbotStatus !== status) {
+      showToast("Assistant not connected", { variant: "warn", key: "assistant" });
+    }
+    assistantWasDisconnected = true;
   } else if (status === "Online") {
-    hideToastByKey("assistant");
+    if (assistantWasDisconnected) {
+      showToast("Assistant connected", { variant: "ok", key: "assistant" });
+    }
+    assistantWasDisconnected = false;
   }
 
   lastChatbotStatus = status;
