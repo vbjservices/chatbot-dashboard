@@ -48,14 +48,33 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
   // Defaults (consistent per chart)
   const basePlugins = [shadowPlugin()];
 
-  // Today success rate (based on items)
+  // Today outcomes (based on items)
+  // Use mutually exclusive buckets so the donut always sums to total.
   const total = items.length || 0;
-  const success = items.filter(x => !!(x.success ?? x.outcome?.success)).length;
-  const rate = total ? Math.round((success / total) * 100) : 0;
+  let success = 0;
+  let support = 0;
+  let lead = 0;
+  let failed = 0;
+
+  for (const x of items) {
+    const isSuccess = !!(x.success ?? x.outcome?.success);
+    const isSupport = !!(x.escalated ?? x.outcome?.escalated);
+    const isLead = !!(x.lead ?? x.outcome?.lead);
+
+    if (!isSuccess) {
+      failed += 1;
+    } else if (isSupport) {
+      support += 1;
+    } else if (isLead) {
+      lead += 1;
+    } else {
+      success += 1;
+    }
+  }
 
   // Donut labels/order pinned
-  const donutLabels = ["Success", "Failed"];
-  const donutData = [rate, 100 - rate];
+  const donutLabels = ["Success", "Support", "Lead", "Failed"];
+  const donutData = [success, support, lead, failed];
 
   upsertChart("chartTodaySuccess", {
     type: "doughnut",
@@ -73,7 +92,10 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
 
           // chartArea can be undefined on first render
           if (!area) {
-            return dataIndex === 0 ? theme.okBase : theme.failBase;
+            if (dataIndex === 0) return theme.okBase;
+            if (dataIndex === 1) return theme.warn;
+            if (dataIndex === 2) return theme.accent;
+            return theme.failBase;
           }
 
           if (dataIndex === 0) {
@@ -82,6 +104,24 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
               area,
               theme.okBase,
               theme.okGlow,
+              theme.rimFade
+            );
+          }
+          if (dataIndex === 1) {
+            return radialSliceGradient(
+              c,
+              area,
+              theme.warn,
+              theme.warnGlow,
+              theme.rimFade
+            );
+          }
+          if (dataIndex === 2) {
+            return radialSliceGradient(
+              c,
+              area,
+              theme.accent,
+              theme.accentGlow,
               theme.rimFade
             );
           }
@@ -116,13 +156,30 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
             pointStyle: "circle",
             generateLabels: (chart) => {
               const labels = chart.data.labels || [];
-              return labels.map((label, i) => {
-                const isSuccess = i === 0;
-                const fill = isSuccess ? theme.okLegendFill : theme.failLegendFill;
-                const stroke = isSuccess ? theme.okLegendStroke : theme.failLegendStroke;
+              const data = chart.data.datasets?.[0]?.data || [];
+              const totalValue = data.reduce((sum, v) => sum + Number(v || 0), 0);
+              const base = labels.map((label, i) => {
+                const value = Number(data[i] || 0);
+                const pct = totalValue ? Math.round((value / totalValue) * 100) : 0;
+                const fill =
+                  i === 0
+                    ? theme.okLegendFill
+                    : i === 1
+                    ? withAlpha(theme.warn, 0.95)
+                    : i === 2
+                    ? withAlpha(theme.accent, 0.95)
+                    : theme.failLegendFill;
+                const stroke =
+                  i === 0
+                    ? theme.okLegendStroke
+                    : i === 1
+                    ? withAlpha(theme.warn, 0.65)
+                    : i === 2
+                    ? withAlpha(theme.accent, 0.65)
+                    : theme.failLegendStroke;
 
                 return {
-                  text: label,
+                  text: `${label} — ${pct}%`,
                   fillStyle: fill,
                   strokeStyle: stroke,
                   lineWidth: 2,
@@ -132,6 +189,7 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
                   pointStyle: "circle",
                 };
               });
+              return base.reverse();
             },
           },
         },
@@ -426,6 +484,8 @@ function shadowPlugin() {
     },
   };
 }
+
+
 
 function radialSliceGradient(ctx, chartArea, base, glow, rimFade) {
   const cx = (chartArea.left + chartArea.right) / 2;
