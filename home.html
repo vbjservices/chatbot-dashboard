@@ -42,7 +42,7 @@
           CHATBOT <span class="accent">DASHBOARD</span>
         </h1>
         <p class="hero-subline">
-          Your assistant runs 24/7 and gives you clear visibility into every conversation.
+          Your assistant works 24/7 and gives you clear visibility into every conversation.
           Costing a fraction compared to a monthly employee salary, whilst delivering direct results.
         </p>
         <div class="hero-actions">
@@ -55,8 +55,8 @@
             <span class="meta-label">ROI signal</span>
           </div>
           <div class="meta-item">
-            <span class="meta-value">4x</span>
-            <span class="meta-label">Faster reviews</span>
+            <span class="meta-value">10x</span>
+            <span class="meta-label">Faster response</span>
           </div>
         </div>
       </div>
@@ -71,15 +71,15 @@
             <div class="gif-stats">
               <div>
                 <div class="gif-label">Success</div>
-                <div class="gif-value">74%</div>
+                <div class="gif-value" id="gifSuccess">74%</div>
               </div>
               <div>
                 <div class="gif-label">Escalation</div>
-                <div class="gif-value">9%</div>
+                <div class="gif-value" id="gifEscalation">9%</div>
               </div>
               <div>
                 <div class="gif-label">Leads</div>
-                <div class="gif-value">46</div>
+                <div class="gif-value" id="gifLeads">46%</div>
               </div>
             </div>
             <div class="gif-bars">
@@ -107,11 +107,37 @@
 
       <div class="success-wheel" id="successWheel" aria-label="Outcome breakdown">
         <svg class="wheel-chart" viewBox="0 0 200 200" role="img" aria-label="Success, Support, Lead, Failed rates">
+          <defs>
+            <radialGradient id="grad-success" cx="100" cy="100" r="90" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#22c55e" stop-opacity="0.82"></stop>
+              <stop offset="55%" stop-color="#22c55e" stop-opacity="1"></stop>
+              <stop offset="88%" stop-color="#22c55e" stop-opacity="0.96"></stop>
+              <stop offset="100%" stop-color="#000000" stop-opacity="0.04"></stop>
+            </radialGradient>
+            <radialGradient id="grad-support" cx="100" cy="100" r="90" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.82"></stop>
+              <stop offset="55%" stop-color="#f59e0b" stop-opacity="1"></stop>
+              <stop offset="88%" stop-color="#f59e0b" stop-opacity="0.96"></stop>
+              <stop offset="100%" stop-color="#000000" stop-opacity="0.04"></stop>
+            </radialGradient>
+            <radialGradient id="grad-lead" cx="100" cy="100" r="90" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#2fd6c4" stop-opacity="0.82"></stop>
+              <stop offset="55%" stop-color="#2fd6c4" stop-opacity="1"></stop>
+              <stop offset="88%" stop-color="#2fd6c4" stop-opacity="0.96"></stop>
+              <stop offset="100%" stop-color="#000000" stop-opacity="0.04"></stop>
+            </radialGradient>
+            <radialGradient id="grad-failed" cx="100" cy="100" r="90" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#ef4444" stop-opacity="0.82"></stop>
+              <stop offset="55%" stop-color="#ef4444" stop-opacity="1"></stop>
+              <stop offset="88%" stop-color="#ef4444" stop-opacity="0.96"></stop>
+              <stop offset="100%" stop-color="#000000" stop-opacity="0.04"></stop>
+            </radialGradient>
+          </defs>
           <circle class="wheel-bg" cx="100" cy="100" r="72"></circle>
-          <circle class="wheel-seg success" cx="100" cy="100" r="72"></circle>
-          <circle class="wheel-seg support" cx="100" cy="100" r="72"></circle>
-          <circle class="wheel-seg lead" cx="100" cy="100" r="72"></circle>
-          <circle class="wheel-seg failed" cx="100" cy="100" r="72"></circle>
+          <circle class="wheel-seg success" cx="100" cy="100" r="72" stroke="url(#grad-success)"></circle>
+          <circle class="wheel-seg support" cx="100" cy="100" r="72" stroke="url(#grad-support)"></circle>
+          <circle class="wheel-seg lead" cx="100" cy="100" r="72" stroke="url(#grad-lead)"></circle>
+          <circle class="wheel-seg failed" cx="100" cy="100" r="72" stroke="url(#grad-failed)"></circle>
         </svg>
         <div class="wheel-center">
           <div class="wheel-kicker">Assistant outcomes</div>
@@ -185,7 +211,7 @@
     <section class="how">
       <div class="section-head center">
         <p class="eyebrow">Here is how</p>
-        <h2>HERE IS <span class="accent">HOW IT RUNS</span></h2>
+        <h2>WHAT TO <span class="accent">EXPECT?</span></h2>
       </div>
       <div class="how-grid">
         <div class="how-card">
@@ -197,7 +223,7 @@
         <div class="how-card">
           <div class="how-number">2</div>
           <div class="how-icon eye-icon" aria-hidden="true">
-            <span class="eye-outline"></span>
+            <img class="eye-base" src="./assets/Eye_Icon.png" alt="" />
             <span class="eye-pupil"></span>
           </div>
           <h3>Real-time visibility</h3>
@@ -244,6 +270,33 @@
       );
 
       observer.observe(wheel);
+    })();
+
+    (function () {
+      const successEl = document.getElementById("gifSuccess");
+      const escalationEl = document.getElementById("gifEscalation");
+      const leadsEl = document.getElementById("gifLeads");
+      if (!successEl || !escalationEl || !leadsEl) return;
+
+      const metrics = [
+        { el: successEl, min: 74, max: 88, speed: 0.55, phase: 0.0 },
+        { el: escalationEl, min: 6, max: 14, speed: 0.7, phase: 1.8 },
+        { el: leadsEl, min: 8, max: 22, speed: 0.62, phase: 3.2 },
+      ];
+
+      const lerp = (a, b, t) => a + (b - a) * t;
+
+      const tick = (now) => {
+        const t = now / 1000;
+        for (const m of metrics) {
+          const wave = 0.5 + 0.5 * Math.sin(t * m.speed + m.phase);
+          const value = Math.round(lerp(m.min, m.max, wave));
+          m.el.textContent = `${value}%`;
+        }
+        requestAnimationFrame(tick);
+      };
+
+      requestAnimationFrame(tick);
     })();
   </script>
 </body>

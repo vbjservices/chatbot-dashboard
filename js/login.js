@@ -211,11 +211,11 @@ function validate(method) {
 
 function formatAuthError(error, mode, method) {
   const raw = String(error?.message || "").toLowerCase();
+  if (raw.includes("invalid login") || raw.includes("invalid credentials")) {
+    return "Login failed. Incorrect email or password.";
+  }
   if (raw.includes("already registered")) {
     return "Account already exists. Switch to Sign in.";
-  }
-  if (raw.includes("invalid login") || raw.includes("invalid credentials")) {
-    return "Invalid email or password.";
   }
   if (raw.includes("confirm") && raw.includes("email")) {
     return "Check your email to confirm your account.";
@@ -234,6 +234,11 @@ function formatAuthError(error, mode, method) {
     return "Use a valid work email.";
   }
   return error?.message || "Something went wrong. Try again.";
+}
+
+function isInvalidCredentials(error) {
+  const raw = String(error?.message || "").toLowerCase();
+  return raw.includes("invalid login") || raw.includes("invalid credentials");
 }
 
 function getRedirectTo() {
@@ -322,6 +327,10 @@ form?.addEventListener("submit", async (event) => {
 
     if (error) {
       setMessage("error", formatAuthError(error, state.mode, method));
+      if (method === "password" && state.mode === "login" && isInvalidCredentials(error)) {
+        setFieldError("email", "Check your email.");
+        setFieldError("password", "Incorrect password.");
+      }
     } else if (method === "magic") {
       const text =
         state.mode === "login"
