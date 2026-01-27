@@ -905,7 +905,7 @@ main {
   display: block;
   pointer-events: none;
   transform-origin: center;
-  animation: eye-squeeze 6s ease-in-out infinite;
+  animation: eye-squeeze 4s ease-in-out infinite;
   filter: brightness(0) saturate(100%) invert(78%) sepia(24%) saturate(520%)
     hue-rotate(126deg) brightness(98%) contrast(92%);
   z-index: 1;
@@ -916,7 +916,7 @@ main {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -20%);
-  animation: eye-scan 6s ease-in-out infinite;
+  animation: eye-scan 4s ease-in-out infinite;
   z-index: 2;
 }
 
@@ -926,7 +926,7 @@ main {
   border-radius: 50%;
   background: var(--accent);
   display: block;
-  animation: eye-squeeze 6s ease-in-out infinite;
+  animation: eye-squeeze 4s ease-in-out infinite;
 }
 
 .how-icon.eye-icon .eye-line {
@@ -939,7 +939,7 @@ main {
   background: var(--accent);
   transform: translate(-50%, -50%);
   opacity: 0;
-  animation: eye-line 6s ease-in-out infinite;
+  animation: eye-line 4s ease-in-out infinite;
   box-shadow: 0 0 6px rgba(47, 214, 196, 0.4);
   z-index: 3;
 }
