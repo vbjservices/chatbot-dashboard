@@ -287,9 +287,11 @@ main {
 .gif-bars {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+  gap: clamp(6px, 2.4vw, 12px);
   align-items: end;
   height: 78px;
+  width: 100%;
+  justify-items: stretch;
 }
 
 .gif-bars span {
