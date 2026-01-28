@@ -286,7 +286,7 @@ main {
 
 .gif-bars {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   align-items: end;
   height: 78px;
@@ -301,11 +301,8 @@ main {
 }
 
 .gif-bars span:nth-child(1) { height: 84%; animation-delay: -1.1s; animation-duration: 8.6s; }
-.gif-bars span:nth-child(2) { height: 58%; animation-delay: -2.8s; animation-duration: 7.2s; }
+.gif-bars span:nth-child(2) { height: 62%; animation-delay: -2.3s; animation-duration: 7.4s; }
 .gif-bars span:nth-child(3) { height: 96%; animation-delay: -0.6s; animation-duration: 9.0s; }
-.gif-bars span:nth-child(4) { height: 70%; animation-delay: -3.4s; animation-duration: 7.5s; }
-.gif-bars span:nth-child(5) { height: 88%; animation-delay: -1.9s; animation-duration: 8.2s; }
-.gif-bars span:nth-child(6) { height: 62%; animation-delay: -2.3s; animation-duration: 7.0s; }
 
 .gif-scan {
   position: absolute;
