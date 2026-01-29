@@ -84,6 +84,10 @@ function showToast(message, { duration = 4500, variant = "warn", key = "" } = {}
   return el;
 }
 
+export function notify(message, options = {}) {
+  return showToast(message, options);
+}
+
 function dismissToast(el) {
   if (!el) return;
   const timer = toastTimers.get(el);

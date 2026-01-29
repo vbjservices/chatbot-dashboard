@@ -16,6 +16,7 @@ import {
   renderConversationDetail,
   renderFailedTable,
   renderEscalationTable,
+  notify,
 
   // NEW (drilldown overlay)
   openDrilldownOverlay,
@@ -163,6 +164,38 @@ async function loadAdminUsers() {
     state.adminUsers = Array.isArray(data) ? data : [];
   } catch (err) {
     console.warn("Failed to load users:", err);
+  }
+}
+
+async function fetchProfileRowById(userId) {
+  if (!userId) return null;
+  try {
+    const attempts = [
+      "id, email, full_name, company, supabase_url, supabase_anon_key",
+      "id, email, full_name, company, supabase_url",
+      "id, email, full_name, company",
+      "id, email, full_name",
+      "id, email",
+      "id",
+    ];
+
+    let data = null;
+    let error = null;
+    for (const select of attempts) {
+      ({ data, error } = await supabase.from(PROFILES_TABLE).select(select).eq("id", userId).maybeSingle());
+      if (!error) break;
+      const msg = error.message || "";
+      if (!/column/i.test(msg)) break;
+    }
+
+    if (error) {
+      console.warn("Failed to fetch profile row:", error.message || error);
+      return null;
+    }
+    return data || null;
+  } catch (err) {
+    console.warn("Failed to fetch profile row:", err);
+    return null;
   }
 }
 
@@ -685,12 +718,12 @@ function wireUI() {
       if (!drillOpen) document.body.classList.remove("overlay-open");
     };
 
-    const saveConnection = () => {
+    const saveConnection = async () => {
       const url = supabaseUrlInput?.value || "";
       const anonKey = supabaseKeyInput?.value || "";
       const remember = !!rememberConnection?.checked;
       setConnection({ url, anonKey, remember });
-      persistConnectionToProfile({ url, anonKey, remember });
+      await persistConnectionToProfile({ url, anonKey, remember });
       closeConnectionOverlay();
       loadData({ preferNetwork: true });
     };
@@ -812,17 +845,17 @@ function wireUI() {
         return;
       }
       const label = user.full_name || user.email || user.label || user.id;
-      const url = user.supabase_url || user.url || "—";
-      const key = user.supabase_anon_key || user.anonKey || "—";
+      const url = user.supabase_url || user.supabaseUrl || user.url || "";
+      const key = user.supabase_anon_key || user.supabaseAnonKey || user.anonKey || "";
       adminUserLabel.textContent = label;
-      adminUserUrl.textContent = `Project URL: ${url}`;
-      adminUserKey.textContent = `Anon key: ${key}`;
+      adminUserUrl.textContent = url ? `Project URL: ${url}` : "Project URL: — (not saved)";
+      adminUserKey.textContent = key ? `Anon key: ${key}` : "Anon key: — (not saved)";
     };
 
     renderAdminOptions();
     updateAdminMeta(state.adminView);
 
-    adminUserSelect.addEventListener("change", () => {
+    adminUserSelect.addEventListener("change", async () => {
       const id = adminUserSelect.value;
       if (!id) {
         state.adminView = null;
@@ -831,21 +864,21 @@ function wireUI() {
         return;
       }
 
-      const selected = state.adminUsers.find((u) => u.id === id);
-      if (!selected) {
-        state.adminView = null;
-        updateAdminMeta(null);
-        loadData({ preferNetwork: true });
-        return;
-      }
+      const selected = state.adminUsers.find((u) => u.id === id) || { id };
+      updateAdminMeta(selected);
+
+      const row = await fetchProfileRowById(id);
+      const resolved = { ...selected, ...(row || {}) };
+      const url = resolved.supabase_url || resolved.supabaseUrl || "";
+      const anonKey = resolved.supabase_anon_key || resolved.supabaseAnonKey || "";
 
       state.adminView = {
-        id: selected.id,
-        label: selected.full_name || selected.email || selected.id,
-        url: selected.supabase_url || "",
-        anonKey: selected.supabase_anon_key || "",
+        id,
+        label: resolved.full_name || resolved.email || resolved.label || id,
+        url,
+        anonKey,
       };
-      updateAdminMeta(selected);
+      updateAdminMeta(resolved);
       loadData({ preferNetwork: true });
     });
   }
@@ -979,48 +1012,84 @@ function coerceBoolean(value) {
   return s === "true" || s === "t" || s === "1" || s === "yes" || s === "y";
 }
 
+async function getCurrentUserId() {
+  if (state.userId) return state.userId;
+  try {
+    const { data } = await supabase.auth.getUser();
+    const id = data?.user?.id || null;
+    if (id) state.userId = id;
+    return id;
+  } catch (err) {
+    console.warn("Failed to resolve current user id:", err);
+    return null;
+  }
+}
+
 async function persistConnectionToProfile({ url, anonKey, remember } = {}) {
-  const hasCreds = !!(url && anonKey);
+  const cleanUrl = String(url || "").trim();
+  const cleanKey = String(anonKey || "").trim();
+  const hasCreds = !!(cleanUrl && cleanKey);
   const payload = hasCreds
-    ? { supabase_url: url, supabase_anon_key: anonKey }
+    ? { supabase_url: cleanUrl, supabase_anon_key: cleanKey }
     : { supabase_url: null, supabase_anon_key: null };
 
   try {
     await supabase.auth.updateUser({
       data: hasCreds
-        ? { supabase_url: url, supabase_anon_key: anonKey }
+        ? { supabase_url: cleanUrl, supabase_anon_key: cleanKey }
         : { supabase_url: "", supabase_anon_key: "" },
     });
   } catch (err) {
     console.warn("Failed to store connection in profile:", err);
   }
 
-  if (!state.userId) return;
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    notify("Could not save connection: user not authenticated.", { variant: "bad", key: "profile-save" });
+    return;
+  }
   try {
     const timestamp = new Date().toISOString();
     const { data, error } = await supabase
       .from(PROFILES_TABLE)
       .update({ ...payload, updated_at: timestamp })
-      .eq("id", state.userId)
+      .eq("id", userId)
       .select("id")
       .maybeSingle();
 
     if (error) {
       console.warn("Failed to update profiles table:", error.message || error);
+      notify("Could not save connection to your profile (update blocked).", { variant: "bad", key: "profile-save" });
       return;
     }
 
     if (!data) {
       const { error: insertError } = await supabase
         .from(PROFILES_TABLE)
-        .insert({ id: state.userId, ...payload, updated_at: timestamp })
+        .insert({ id: userId, ...payload, updated_at: timestamp })
         .select("id")
         .maybeSingle();
       if (insertError) {
         console.warn("Failed to insert profile row:", insertError.message || insertError);
+        notify("Could not create profile row to save connection.", { variant: "bad", key: "profile-save" });
+        return;
+      }
+    }
+
+    if (hasCreds) {
+      const { data: verify, error: verifyError } = await supabase
+        .from(PROFILES_TABLE)
+        .select("supabase_url, supabase_anon_key")
+        .eq("id", userId)
+        .maybeSingle();
+      if (verifyError) {
+        console.warn("Failed to verify profile save:", verifyError.message || verifyError);
+      } else if (!verify?.supabase_url || !verify?.supabase_anon_key) {
+        notify("Saved locally, but profile row still missing credentials.", { variant: "warn", key: "profile-save" });
       }
     }
   } catch (err) {
     console.warn("Failed to store connection in profiles table:", err);
+    notify("Could not save connection to your profile.", { variant: "bad", key: "profile-save" });
   }
 }
