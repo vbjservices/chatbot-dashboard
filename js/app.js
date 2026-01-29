@@ -818,6 +818,7 @@ function wireUI() {
   if (state.isAdmin && adminUserSelect) {
     const renderAdminOptions = () => {
       adminUserSelect.innerHTML = "";
+      const duplicateIds = getDuplicateCredentialIds(state.adminUsers);
       const optAll = document.createElement("option");
       optAll.value = "";
       optAll.textContent = "All users";
@@ -827,7 +828,9 @@ function wireUI() {
         const opt = document.createElement("option");
         opt.value = user.id;
         const label = user.full_name || user.email || user.id;
-        opt.textContent = label;
+        const isDup = duplicateIds.has(user.id);
+        opt.textContent = isDup ? `${label} ⚠️` : label;
+        if (isDup) opt.title = "Duplicate Supabase credentials";
         adminUserSelect.appendChild(opt);
       }
 
@@ -1010,6 +1013,43 @@ function coerceBoolean(value) {
   if (value == null) return false;
   const s = String(value).trim().toLowerCase();
   return s === "true" || s === "t" || s === "1" || s === "yes" || s === "y";
+}
+
+function normalizeCredUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const lower = raw.toLowerCase();
+  return lower.endsWith("/") ? lower.slice(0, -1) : lower;
+}
+
+function normalizeCredKey(value) {
+  return String(value || "").trim();
+}
+
+function buildCredentialKey(user) {
+  const url = normalizeCredUrl(user?.supabase_url || user?.supabaseUrl || "");
+  const key = normalizeCredKey(user?.supabase_anon_key || user?.supabaseAnonKey || "");
+  if (!url || !key) return "";
+  return `${url}::${key}`;
+}
+
+function getDuplicateCredentialIds(users = []) {
+  const map = new Map();
+  for (const u of users || []) {
+    const k = buildCredentialKey(u);
+    if (!k) continue;
+    const arr = map.get(k);
+    if (arr) arr.push(u.id);
+    else map.set(k, [u.id]);
+  }
+
+  const dupes = new Set();
+  for (const ids of map.values()) {
+    if (ids.length > 1) {
+      for (const id of ids) dupes.add(id);
+    }
+  }
+  return dupes;
 }
 
 async function getCurrentUserId() {
