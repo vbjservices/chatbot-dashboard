@@ -1,5 +1,5 @@
 // app.js
-import { ENV_LABEL } from "./config.js";
+import { ENV_LABEL, PROFILES_TABLE } from "./config.js";
 import { getConnection, setConnection, hasConnection, setConnectionScope, clearConnection } from "./connection.js";
 import { readCache, writeCache, clearCache, buildCacheMeta } from "./storage.js";
 import { fetchSupabaseRows, fetchChatbotStatus } from "./supabase.js";
@@ -46,6 +46,10 @@ const state = {
   source: "—",
 
   userId: null,
+  userHasPassword: false,
+  isAdmin: false,
+  adminView: null,
+  adminUsers: [],
 };
 
 init().catch((err) => {
@@ -58,8 +62,12 @@ async function init() {
   const user = await ensureAuthenticated();
   if (!user) return;
 
-  await hydrateConnectionFromProfile(user);
-  await hydrateSidebarUser();
+  const profile = await fetchProfile(user.id);
+  await hydrateConnectionFromProfile(user, profile);
+  await hydrateSidebarUser(user, profile);
+  if (state.isAdmin) {
+    await loadAdminUsers();
+  }
 
   setEnvLabel(ENV_LABEL);
   setStatusPill("Loading");
@@ -85,35 +93,145 @@ async function ensureAuthenticated() {
   return null;
 }
 
-async function hydrateConnectionFromProfile(user) {
+async function fetchProfile(userId) {
+  if (!userId) return null;
+  try {
+    const attempts = [
+      "id, is_admin, has_password, supabase_url, supabase_anon_key",
+      "id, is_admin, has_password, supabase_url",
+      "id, is_admin, has_password",
+      "id, is_admin",
+      "id, admin, has_password, supabase_url, supabase_anon_key",
+      "id, admin, has_password",
+      "id, admin",
+      "id, has_password",
+      "id",
+    ];
+
+    let data = null;
+    let error = null;
+    for (const select of attempts) {
+      ({ data, error } = await supabase.from(PROFILES_TABLE).select(select).eq("id", userId).maybeSingle());
+      if (!error) break;
+      const msg = error.message || "";
+      if (!/column/i.test(msg)) break;
+    }
+    if (error) {
+      console.warn("Failed to fetch profile:", error.message || error);
+      return null;
+    }
+    const isAdmin = coerceBoolean(data?.is_admin ?? data?.admin ?? data?.isAdmin);
+    state.isAdmin = isAdmin;
+    if (coerceBoolean(data?.has_password ?? data?.hasPassword)) state.userHasPassword = true;
+    if (!state.isAdmin) {
+      state.adminView = null;
+      state.adminUsers = [];
+    }
+    return data || null;
+  } catch (err) {
+    console.warn("Failed to fetch profile:", err);
+    return null;
+  }
+}
+
+async function loadAdminUsers() {
+  if (!state.isAdmin) return;
+  try {
+    const baseQuery = supabase.from(PROFILES_TABLE);
+    let data = null;
+    let error = null;
+
+    const attempts = [
+      { select: "id, email, full_name, company, supabase_url, supabase_anon_key", order: "email" },
+      { select: "id, email, full_name, company", order: "email" },
+      { select: "id, email, full_name", order: "email" },
+      { select: "id, email", order: "email" },
+      { select: "id", order: "id" },
+    ];
+
+    for (const attempt of attempts) {
+      ({ data, error } = await baseQuery.select(attempt.select).order(attempt.order, { ascending: true }));
+      if (!error) break;
+      const msg = error.message || "";
+      if (!/column/i.test(msg)) break;
+    }
+
+    if (error) {
+      console.warn("Failed to load users:", error.message || error);
+      return;
+    }
+    state.adminUsers = Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.warn("Failed to load users:", err);
+  }
+}
+
+function getActiveCredentials() {
+  if (state.adminView) {
+    if (state.adminView.url && state.adminView.anonKey) {
+      return { url: state.adminView.url, anonKey: state.adminView.anonKey };
+    }
+    return null;
+  }
+  const { url, anonKey } = getConnection();
+  return url && anonKey ? { url, anonKey } : null;
+}
+
+function getCacheScope() {
+  if (state.adminView?.id) return `admin:${state.adminView.id}`;
+  return state.userId || "";
+}
+
+async function hydrateConnectionFromProfile(user, profile) {
   if (!user || hasConnection()) return;
 
   const meta = user.user_metadata || {};
-  const url = meta.supabase_url || meta.supabaseUrl || "";
-  const anonKey = meta.supabase_anon_key || meta.supabaseAnonKey || meta.supabaseKey || "";
+  const url =
+    meta.supabase_url ||
+    meta.supabaseUrl ||
+    profile?.supabase_url ||
+    profile?.supabaseUrl ||
+    "";
+  const anonKey =
+    meta.supabase_anon_key ||
+    meta.supabaseAnonKey ||
+    meta.supabaseKey ||
+    profile?.supabase_anon_key ||
+    profile?.supabaseAnonKey ||
+    profile?.supabaseKey ||
+    "";
 
   if (url && anonKey) {
     setConnection({ url, anonKey, remember: true });
   }
 }
 
-async function hydrateSidebarUser() {
+async function hydrateSidebarUser(user, profile) {
   const nameEl = document.getElementById("sidebarUserName");
   const emailEl = document.getElementById("sidebarUserEmail");
+  const setPasswordBtn = document.getElementById("setPasswordBtn");
+  const adminUserField = document.getElementById("adminUserField");
+  const adminUserMeta = document.getElementById("adminUserMeta");
   if (!nameEl) return;
 
   try {
-    const { data } = await supabase.auth.getUser();
-    const user = data?.user;
-    if (!user) {
+    const currentUser = user || (await supabase.auth.getUser()).data?.user;
+    const meta = currentUser?.user_metadata || {};
+    if (meta.has_password === true) state.userHasPassword = true;
+    const activeProfile = profile || null;
+    if (activeProfile?.has_password === true) state.userHasPassword = true;
+
+    if (!currentUser) {
       nameEl.textContent = "-";
       if (emailEl) emailEl.textContent = "";
+      if (setPasswordBtn) setPasswordBtn.hidden = true;
+      if (adminUserField) adminUserField.hidden = true;
+      if (adminUserMeta) adminUserMeta.hidden = true;
       return;
     }
 
-    const meta = user.user_metadata || {};
-    const name = meta.full_name || meta.name || user.email || "-";
-    const email = user.email || "";
+    const name = meta.full_name || meta.name || currentUser.email || "-";
+    const email = currentUser.email || "";
 
     nameEl.textContent = name;
     if (emailEl) {
@@ -125,17 +243,27 @@ async function hydrateSidebarUser() {
         emailEl.style.display = "block";
       }
     }
+
+    if (setPasswordBtn) setPasswordBtn.hidden = state.userHasPassword;
+    if (adminUserField) adminUserField.hidden = !state.isAdmin;
+    if (adminUserMeta) adminUserMeta.hidden = !state.isAdmin;
+    document.body.classList.toggle("is-admin", state.isAdmin);
   } catch (err) {
     console.warn("Failed to load user profile:", err);
     nameEl.textContent = "-";
     if (emailEl) emailEl.textContent = "";
+    if (setPasswordBtn) setPasswordBtn.hidden = true;
+    if (adminUserField) adminUserField.hidden = true;
+    if (adminUserMeta) adminUserMeta.hidden = true;
+    document.body.classList.remove("is-admin");
   }
 }
 
 /* ---------------- loading ---------------- */
 
 async function loadData({ preferNetwork = true } = {}) {
-  const hasConn = hasConnection();
+  const activeCreds = getActiveCredentials();
+  const hasConn = !!activeCreds;
   if (hasConn) {
     setStatusPill("Loading");
   } else {
@@ -147,7 +275,7 @@ async function loadData({ preferNetwork = true } = {}) {
   if (hasConn) {
     (async () => {
       try {
-        const st = await fetchChatbotStatus({ botId: "chatbot" });
+        const st = await fetchChatbotStatus({ botId: "chatbot", credentials: activeCreds });
         if (!st) {
           setChatbotPill("Disconnected");
           return;
@@ -164,7 +292,7 @@ async function loadData({ preferNetwork = true } = {}) {
 
   if (preferNetwork && hasConn) {
     try {
-      const rows = await fetchSupabaseRows({ sinceISO });
+      const rows = await fetchSupabaseRows({ sinceISO, credentials: activeCreds });
       state.rows = rows || [];
       state.turns = state.rows.map(normalizeChatEvent);
       state.conversations = groupTurnsToConversations(state.turns);
@@ -175,7 +303,7 @@ async function loadData({ preferNetwork = true } = {}) {
       writeCache(
         { turns: state.turns },
         buildCacheMeta({ source: "Supabase", rowCount: state.rows.length, sinceISO }),
-        { scope: state.userId }
+        { scope: getCacheScope() }
       );
 
       setStatusPill("Connected");
@@ -201,7 +329,7 @@ async function loadData({ preferNetwork = true } = {}) {
     }
   }
 
-  const cached = readCache({ scope: state.userId });
+  const cached = readCache({ scope: getCacheScope() });
   if (cached?.data?.turns?.length) {
     state.rows = [];
     state.turns = cached.data.turns;
@@ -422,6 +550,7 @@ function wireUI() {
   const refreshBtn = document.getElementById("refreshBtn");
   const exportBtn = document.getElementById("exportBtn");
   const signOutBtn = document.getElementById("signOutBtn");
+  const setPasswordBtn = document.getElementById("setPasswordBtn");
   const connectionBtn = document.getElementById("connectionBtn");
   const connectionOverlay = document.getElementById("connectionOverlay");
   const connectionBackdrop = document.getElementById("connectionOverlayBackdrop");
@@ -432,6 +561,19 @@ function wireUI() {
   const rememberConnection = document.getElementById("rememberConnection");
   const supabaseUrlToggle = document.getElementById("supabaseUrlToggle");
   const supabaseKeyToggle = document.getElementById("supabaseKeyToggle");
+  const passwordOverlay = document.getElementById("passwordOverlay");
+  const passwordBackdrop = document.getElementById("passwordOverlayBackdrop");
+  const passwordClose = document.getElementById("passwordOverlayClose");
+  const savePasswordBtn = document.getElementById("savePasswordBtn");
+  const newPasswordInput = document.getElementById("newPasswordInput");
+  const confirmPasswordInput = document.getElementById("confirmPasswordInput");
+  const passwordMessage = document.getElementById("passwordMessage");
+  const adminUserField = document.getElementById("adminUserField");
+  const adminUserSelect = document.getElementById("adminUserSelect");
+  const adminUserMeta = document.getElementById("adminUserMeta");
+  const adminUserLabel = document.getElementById("adminUserLabel");
+  const adminUserUrl = document.getElementById("adminUserUrl");
+  const adminUserKey = document.getElementById("adminUserKey");
 
   const latencyP95Btn = document.getElementById("latencyP95Btn");
   const latencyAvgBtn = document.getElementById("latencyAvgBtn");
@@ -468,6 +610,12 @@ function wireUI() {
 
   const urlSecret = setupSecretToggle(supabaseUrlInput, supabaseUrlToggle, "Project URL");
   const keySecret = setupSecretToggle(supabaseKeyInput, supabaseKeyToggle, "Anon key");
+
+  const setPasswordMessage = (type, text) => {
+    if (!passwordMessage) return;
+    passwordMessage.textContent = text || "";
+    passwordMessage.className = "password-message" + (type ? ` ${type}` : "");
+  };
 
   if (rangeSelect) state.filters.range = rangeSelect.value;
 
@@ -553,6 +701,152 @@ function wireUI() {
     connectionSave?.addEventListener("click", saveConnection);
     window.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeConnectionOverlay();
+    });
+  }
+
+  if (setPasswordBtn && passwordOverlay) {
+    const openPasswordOverlay = () => {
+      if (state.userHasPassword) return;
+      if (newPasswordInput) newPasswordInput.value = "";
+      if (confirmPasswordInput) confirmPasswordInput.value = "";
+      setPasswordMessage("", "");
+      passwordOverlay.classList.add("is-open");
+      passwordOverlay.setAttribute("aria-hidden", "false");
+      document.body.classList.add("overlay-open");
+      newPasswordInput?.focus?.();
+    };
+
+    const closePasswordOverlay = () => {
+      passwordOverlay.classList.remove("is-open");
+      passwordOverlay.setAttribute("aria-hidden", "true");
+      const connectionOpen = connectionOverlay?.classList.contains("is-open");
+      const drill = document.getElementById("drillOverlay");
+      const drillOpen = drill?.classList.contains("is-open");
+      if (!connectionOpen && !drillOpen) document.body.classList.remove("overlay-open");
+    };
+
+    const savePassword = async () => {
+      const password = newPasswordInput?.value || "";
+      const confirm = confirmPasswordInput?.value || "";
+
+      if (!password || password.length < 8) {
+        setPasswordMessage("error", "Use at least 8 characters.");
+        return;
+      }
+      if (password !== confirm) {
+        setPasswordMessage("error", "Passwords do not match.");
+        return;
+      }
+
+      setPasswordMessage("", "Saving...");
+      try {
+        const { error } = await supabase.auth.updateUser({
+          password,
+          data: { has_password: true },
+        });
+        if (error) {
+          setPasswordMessage("error", error.message || "Unable to set password.");
+          return;
+        }
+
+        if (state.userId) {
+          supabase
+            .from(PROFILES_TABLE)
+            .update({ has_password: true, updated_at: new Date().toISOString() })
+            .eq("id", state.userId)
+            .then(({ error: profileError }) => {
+              if (profileError) {
+                console.warn("Failed to update profile has_password:", profileError.message || profileError);
+              }
+            });
+        }
+
+        state.userHasPassword = true;
+        if (setPasswordBtn) setPasswordBtn.hidden = true;
+        setPasswordMessage("success", "Password saved. You can now sign in with it.");
+        setTimeout(closePasswordOverlay, 700);
+      } catch (err) {
+        setPasswordMessage("error", err?.message || "Unable to set password.");
+      }
+    };
+
+    setPasswordBtn.addEventListener("click", openPasswordOverlay);
+    passwordBackdrop?.addEventListener("click", closePasswordOverlay);
+    passwordClose?.addEventListener("click", closePasswordOverlay);
+    savePasswordBtn?.addEventListener("click", savePassword);
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closePasswordOverlay();
+    });
+  }
+
+  if (adminUserField) adminUserField.hidden = !state.isAdmin;
+  if (adminUserMeta) adminUserMeta.hidden = !state.isAdmin;
+
+  if (state.isAdmin && adminUserSelect) {
+    const renderAdminOptions = () => {
+      adminUserSelect.innerHTML = "";
+      const optAll = document.createElement("option");
+      optAll.value = "";
+      optAll.textContent = "All users";
+      adminUserSelect.appendChild(optAll);
+
+      for (const user of state.adminUsers) {
+        const opt = document.createElement("option");
+        opt.value = user.id;
+        const label = user.full_name || user.email || user.id;
+        opt.textContent = label;
+        adminUserSelect.appendChild(opt);
+      }
+
+      if (state.adminView?.id) {
+        adminUserSelect.value = state.adminView.id;
+      }
+    };
+
+    const updateAdminMeta = (user) => {
+      if (!adminUserLabel || !adminUserUrl || !adminUserKey) return;
+      if (!user) {
+        adminUserLabel.textContent = "All users";
+        adminUserUrl.textContent = "Project URL: —";
+        adminUserKey.textContent = "Anon key: —";
+        return;
+      }
+      const label = user.full_name || user.email || user.label || user.id;
+      const url = user.supabase_url || user.url || "—";
+      const key = user.supabase_anon_key || user.anonKey || "—";
+      adminUserLabel.textContent = label;
+      adminUserUrl.textContent = `Project URL: ${url}`;
+      adminUserKey.textContent = `Anon key: ${key}`;
+    };
+
+    renderAdminOptions();
+    updateAdminMeta(state.adminView);
+
+    adminUserSelect.addEventListener("change", () => {
+      const id = adminUserSelect.value;
+      if (!id) {
+        state.adminView = null;
+        updateAdminMeta(null);
+        loadData({ preferNetwork: true });
+        return;
+      }
+
+      const selected = state.adminUsers.find((u) => u.id === id);
+      if (!selected) {
+        state.adminView = null;
+        updateAdminMeta(null);
+        loadData({ preferNetwork: true });
+        return;
+      }
+
+      state.adminView = {
+        id: selected.id,
+        label: selected.full_name || selected.email || selected.id,
+        url: selected.supabase_url || "",
+        anonKey: selected.supabase_anon_key || "",
+      };
+      updateAdminMeta(selected);
+      loadData({ preferNetwork: true });
     });
   }
 
@@ -677,26 +971,56 @@ function pickVersion(turns) {
   return v || "—";
 }
 
-async function persistConnectionToProfile({ url, anonKey, remember } = {}) {
-  try {
-    if (remember) {
-      if (!url || !anonKey) return;
-      await supabase.auth.updateUser({
-        data: {
-          supabase_url: url,
-          supabase_anon_key: anonKey,
-        },
-      });
-      return;
-    }
+function coerceBoolean(value) {
+  if (value === true) return true;
+  if (value === false) return false;
+  if (value == null) return false;
+  const s = String(value).trim().toLowerCase();
+  return s === "true" || s === "t" || s === "1" || s === "yes" || s === "y";
+}
 
+async function persistConnectionToProfile({ url, anonKey, remember } = {}) {
+  const hasCreds = !!(url && anonKey);
+  const payload = hasCreds
+    ? { supabase_url: url, supabase_anon_key: anonKey }
+    : { supabase_url: null, supabase_anon_key: null };
+
+  try {
     await supabase.auth.updateUser({
-      data: {
-        supabase_url: "",
-        supabase_anon_key: "",
-      },
+      data: hasCreds
+        ? { supabase_url: url, supabase_anon_key: anonKey }
+        : { supabase_url: "", supabase_anon_key: "" },
     });
   } catch (err) {
     console.warn("Failed to store connection in profile:", err);
+  }
+
+  if (!state.userId) return;
+  try {
+    const timestamp = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(PROFILES_TABLE)
+      .update({ ...payload, updated_at: timestamp })
+      .eq("id", state.userId)
+      .select("id")
+      .maybeSingle();
+
+    if (error) {
+      console.warn("Failed to update profiles table:", error.message || error);
+      return;
+    }
+
+    if (!data) {
+      const { error: insertError } = await supabase
+        .from(PROFILES_TABLE)
+        .insert({ id: state.userId, ...payload, updated_at: timestamp })
+        .select("id")
+        .maybeSingle();
+      if (insertError) {
+        console.warn("Failed to insert profile row:", insertError.message || insertError);
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to store connection in profiles table:", err);
   }
 }

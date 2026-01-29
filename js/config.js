@@ -4,6 +4,7 @@ export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 // Table waar je n8n in schrijft
 export const TABLE_NAME = "chat_events";
+export const PROFILES_TABLE = "profiles";
 
 // Cache keys (localStorage)
 export const CACHE_DATA_KEY = "dash_chat_events_cache_v1";
