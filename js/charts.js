@@ -39,7 +39,13 @@ export function upsertChart(canvasId, config) {
  *
  * onDrill({ chartId, kind, key, label })
  */
-export function renderCharts({ turns = [], conversations = [], latencyMode = "p95", onDrill = null } = {}) {
+export function renderCharts({
+  turns = [],
+  conversations = [],
+  latencyMode = "p95",
+  rangeDays = null,
+  onDrill = null
+} = {}) {
   const items = (turns && turns.length) ? turns : conversations;
 
   // Theme from CSS variables
@@ -199,7 +205,7 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
   });
 
   // Conversations per day
-  const byDay = bucketByDay(items);
+  const byDay = bucketByDay(items, rangeDays);
 
   upsertChart("chartConvos", {
     type: "bar",
@@ -325,8 +331,8 @@ export function renderCharts({ turns = [], conversations = [], latencyMode = "p9
 
   const series =
     (latencyMode === "avg")
-      ? bucketAvgByDaySecondsContinuous(items, latencyMs)
-      : bucketP95ByDaySecondsContinuous(items, latencyMs);
+      ? bucketAvgByDaySecondsContinuous(items, latencyMs, rangeDays)
+      : bucketP95ByDaySecondsContinuous(items, latencyMs, rangeDays);
 
   const latencyLabel = latencyMode === "avg" ? "Latency avg (s)" : "Latency p95 (s)";
   const latencyData = latencyMode === "avg" ? series.avgs : series.p95s;
@@ -627,7 +633,7 @@ function deepenHex(hex, amount = 0.1) {
 
 /* ---------- Data helpers ---------- */
 
-function bucketByDay(items) {
+function bucketByDay(items, rangeDays = null) {
   const map = new Map();
 
   for (const x of items) {
@@ -641,9 +647,20 @@ function bucketByDay(items) {
     map.get(key).count += 1;
   }
 
-  const keys = Array.from(map.keys()).sort();
+  let keys = [];
+  const days = Number(rangeDays);
+  if (Number.isFinite(days) && days > 0) {
+    const now = new Date();
+    for (let i = days - 1; i >= 0; i -= 1) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      keys.push(toISODateKey(d));
+    }
+  } else {
+    keys = Array.from(map.keys()).sort();
+  }
+
   const labels = keys.map(fromISODateKeyToDMY);
-  return { keys, labels, counts: keys.map(k => map.get(k).count) };
+  return { keys, labels, counts: keys.map(k => map.get(k)?.count || 0) };
 }
 
 /**
@@ -662,8 +679,8 @@ function latencyToSeconds(vRaw) {
   return (v > 120) ? (v / 1000) : v;
 }
 
-function bucketP95ByDaySecondsContinuous(items, valueFnMs) {
-  const dayInfo = bucketByDay(items);
+function bucketP95ByDaySecondsContinuous(items, valueFnMs, rangeDays = null) {
+  const dayInfo = bucketByDay(items, rangeDays);
   const valsByKey = new Map();
 
   for (const x of items) {
@@ -688,8 +705,8 @@ function bucketP95ByDaySecondsContinuous(items, valueFnMs) {
   return { labels: dayInfo.labels, p95s };
 }
 
-function bucketAvgByDaySecondsContinuous(items, valueFnMs) {
-  const dayInfo = bucketByDay(items);
+function bucketAvgByDaySecondsContinuous(items, valueFnMs, rangeDays = null) {
+  const dayInfo = bucketByDay(items, rangeDays);
   const aggByKey = new Map();
 
   for (const x of items) {

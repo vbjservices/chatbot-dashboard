@@ -486,7 +486,7 @@ async function loadAllUsersData({ preferNetwork = true } = {}) {
         }
       }
 
-      if (!rows.length) {
+      if (!rows.length && successCount === 0) {
         throw new Error("No rows fetched for All users.");
       }
 
@@ -506,6 +506,9 @@ async function loadAllUsersData({ preferNetwork = true } = {}) {
       setStatusPill("Connected", failureCount ? `${successCount}/${total}` : "");
       if (failureCount) {
         notify(`Some user connections failed (${successCount}/${total}).`, { variant: "warn", key: "all-users" });
+      }
+      if (!rows.length && successCount > 0) {
+        notify("No chats found for this period (All users).", { variant: "warn", key: "all-users-empty" });
       }
 
       setLastUpdatePill(
@@ -661,6 +664,7 @@ function renderChartsOnly({ onPickConversation } = {}) {
   renderCharts({
     turns: state.filteredTurns,
     latencyMode: state.latencyMode,
+    rangeDays: parseRangeDays(state.filters.range),
 
     onDrill: (evt) => {
       const { kind, key, label } = evt || {};
@@ -1149,14 +1153,19 @@ function rangeToSinceISO(range) {
   const day = 24 * 60 * 60 * 1000;
   if (range == null) return null;
 
-  const raw = String(range).trim().toLowerCase();
-  const match = raw.match(/^(\d+)\s*d?$/);
-  if (match) {
-    const days = Number(match[1]);
-    if (days > 0) return new Date(now - days * day).toISOString();
-  }
+  const days = parseRangeDays(range);
+  if (days && days > 0) return new Date(now - days * day).toISOString();
 
   return null;
+}
+
+function parseRangeDays(range) {
+  if (range == null) return null;
+  const raw = String(range).trim().toLowerCase();
+  const match = raw.match(/^(\d+)\s*d?$/);
+  if (!match) return null;
+  const days = Number(match[1]);
+  return days > 0 ? days : null;
 }
 
 function uniq(arr) {
