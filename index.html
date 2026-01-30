@@ -427,12 +427,58 @@
 
         <div class="field">
           <label for="newPasswordInput">New password</label>
-          <input id="newPasswordInput" type="password" placeholder="At least 8 characters" />
+          <div class="password-input-row">
+            <input id="newPasswordInput" type="password" placeholder="At least 8 characters" />
+            <button
+              class="password-eye"
+              id="newPasswordToggle"
+              type="button"
+              aria-label="Show new password"
+              aria-pressed="false"
+              data-visible="false"
+            >
+              <span class="eye-show" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z"></path>
+                  <circle cx="12" cy="12" r="3.2"></circle>
+                </svg>
+              </span>
+              <span class="eye-hide" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z"></path>
+                  <path d="M4 4l16 16"></path>
+                </svg>
+              </span>
+            </button>
+          </div>
         </div>
 
         <div class="field">
           <label for="confirmPasswordInput">Confirm password</label>
-          <input id="confirmPasswordInput" type="password" placeholder="Repeat your password" />
+          <div class="password-input-row">
+            <input id="confirmPasswordInput" type="password" placeholder="Repeat your password" />
+            <button
+              class="password-eye"
+              id="confirmPasswordToggle"
+              type="button"
+              aria-label="Show confirm password"
+              aria-pressed="false"
+              data-visible="false"
+            >
+              <span class="eye-show" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z"></path>
+                  <circle cx="12" cy="12" r="3.2"></circle>
+                </svg>
+              </span>
+              <span class="eye-hide" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6-10-6-10-6z"></path>
+                  <path d="M4 4l16 16"></path>
+                </svg>
+              </span>
+            </button>
+          </div>
         </div>
 
         <div class="password-message" id="passwordMessage" role="status" aria-live="polite"></div>

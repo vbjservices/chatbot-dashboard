@@ -765,6 +765,8 @@ function wireUI() {
   const savePasswordBtn = document.getElementById("savePasswordBtn");
   const newPasswordInput = document.getElementById("newPasswordInput");
   const confirmPasswordInput = document.getElementById("confirmPasswordInput");
+  const newPasswordToggle = document.getElementById("newPasswordToggle");
+  const confirmPasswordToggle = document.getElementById("confirmPasswordToggle");
   const passwordMessage = document.getElementById("passwordMessage");
   const adminUserField = document.getElementById("adminUserField");
   const adminUserSelect = document.getElementById("adminUserSelect");
@@ -808,6 +810,8 @@ function wireUI() {
 
   const urlSecret = setupSecretToggle(supabaseUrlInput, supabaseUrlToggle, "Project URL");
   const keySecret = setupSecretToggle(supabaseKeyInput, supabaseKeyToggle, "Anon key");
+  const newPasswordSecret = setupSecretToggle(newPasswordInput, newPasswordToggle, "new password");
+  const confirmPasswordSecret = setupSecretToggle(confirmPasswordInput, confirmPasswordToggle, "confirm password");
 
   const setPasswordMessage = (type, text) => {
     if (!passwordMessage) return;
@@ -907,6 +911,8 @@ function wireUI() {
       if (state.userHasPassword) return;
       if (newPasswordInput) newPasswordInput.value = "";
       if (confirmPasswordInput) confirmPasswordInput.value = "";
+      newPasswordSecret?.hide?.();
+      confirmPasswordSecret?.hide?.();
       setPasswordMessage("", "");
       passwordOverlay.classList.add("is-open");
       passwordOverlay.setAttribute("aria-hidden", "false");

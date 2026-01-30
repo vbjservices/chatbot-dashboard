@@ -15,7 +15,8 @@ const form = document.getElementById("authForm");
 const passwordSubmitBtn = document.getElementById("passwordSubmitBtn");
 const magicSubmitBtn = document.getElementById("magicSubmitBtn");
 const togglePasswordBtn = document.getElementById("togglePassword");
-const messageEl = document.getElementById("formMessage");
+const passwordMessageEl = document.getElementById("passwordMessage");
+const magicMessageEl = document.getElementById("magicMessage");
 
 const fields = {
   fullName: document.getElementById("fullName"),
@@ -64,6 +65,7 @@ const copy = {
 const state = {
   mode: "login",
   busy: false,
+  deferAutoRedirect: false,
 };
 
 function applyCopy() {
@@ -98,7 +100,7 @@ function setMode(mode) {
 
   applyCopy();
   clearErrors();
-  setMessage("", "");
+  setMessage("", "", "all");
 
   const focusField = mode === "create" ? fields.fullName : fields.email;
   focusField?.focus();
@@ -122,9 +124,27 @@ function setBusy(isBusy, method) {
   magicSubmitBtn.textContent = copy[state.mode].magic.submit;
 }
 
-function setMessage(type, text) {
-  messageEl.textContent = text;
-  messageEl.className = "form-message" + (type ? ` ${type}` : "");
+function setMessage(type, text, method = "all") {
+  const apply = (el, t, msg) => {
+    if (!el) return;
+    el.textContent = msg;
+    el.className = "form-message" + (t ? ` ${t}` : "");
+  };
+
+  if (method === "all") {
+    apply(passwordMessageEl, type, text);
+    apply(magicMessageEl, type, text);
+    return;
+  }
+
+  if (method === "magic") {
+    apply(magicMessageEl, type, text);
+    apply(passwordMessageEl, "", "");
+    return;
+  }
+
+  apply(passwordMessageEl, type, text);
+  apply(magicMessageEl, "", "");
 }
 
 function clearErrors() {
@@ -279,10 +299,10 @@ form?.addEventListener("submit", async (event) => {
 
   const method = event.submitter?.dataset.method || detectMethodFromActive();
 
-  setMessage("", "");
+  setMessage("", "", "all");
 
   if (!validate(method)) {
-    setMessage("error", "Fix the highlighted fields before continuing.");
+    setMessage("error", "Fix the highlighted fields before continuing.", method);
     return;
   }
 
@@ -320,13 +340,41 @@ form?.addEventListener("submit", async (event) => {
 
       ({ error } = await supabase.auth.signUp({ email, password, options }));
     } else {
+      state.deferAutoRedirect = true;
       const email = fields.email.value.trim();
       const password = fields.password.value;
       ({ error } = await supabase.auth.signInWithPassword({ email, password }));
+      if (!error) {
+        try {
+          await supabase.auth.updateUser({ data: { has_password: true } });
+        } catch (metaErr) {
+          console.warn("Failed to mark has_password in auth metadata:", metaErr?.message || metaErr);
+        }
+
+        try {
+          const { data: userData } = await supabase.auth.getUser();
+          const userId = userData?.user?.id || null;
+          if (userId) {
+            const timestamp = new Date().toISOString();
+            const { error: profileError } = await supabase
+              .from("profiles")
+              .update({ has_password: true, updated_at: timestamp })
+              .eq("id", userId);
+            if (profileError) {
+              console.warn("Failed to sync has_password in profile:", profileError.message || profileError);
+            }
+          }
+        } catch (profileErr) {
+          console.warn("Failed to sync has_password in profile:", profileErr?.message || profileErr);
+        }
+        window.location.href = "./index.html";
+        return;
+      }
     }
 
     if (error) {
-      setMessage("error", formatAuthError(error, state.mode, method));
+      state.deferAutoRedirect = false;
+      setMessage("error", formatAuthError(error, state.mode, method), method);
       if (method === "password" && state.mode === "login" && isInvalidCredentials(error)) {
         setFieldError("email", "Check your email.");
         setFieldError("password", "Incorrect password.");
@@ -336,14 +384,15 @@ form?.addEventListener("submit", async (event) => {
         state.mode === "login"
           ? "Check your email for your sign-in link."
           : "Check your email to verify and finish account setup.";
-      setMessage("success", text);
+      setMessage("success", text, "magic");
     } else if (state.mode === "create") {
-      setMessage("success", "Account created. Check your email to confirm before signing in.");
+      setMessage("success", "Account created. Check your email to confirm before signing in.", "password");
     } else {
-      setMessage("success", "Signed in. Redirecting...");
+      setMessage("success", "Signed in. Redirecting...", "password");
     }
   } catch (err) {
-    setMessage("error", formatAuthError(err, state.mode, method));
+    state.deferAutoRedirect = false;
+    setMessage("error", formatAuthError(err, state.mode, method), method);
   } finally {
     setBusy(false, method);
   }
@@ -355,6 +404,7 @@ form?.addEventListener("input", (event) => {
   field.classList.remove("error");
   const error = field.querySelector(".field-error");
   if (error) error.textContent = "";
+  setMessage("", "", "all");
 });
 
 togglePasswordBtn?.addEventListener("click", () => {
@@ -372,7 +422,7 @@ togglePasswordBtn?.addEventListener("click", () => {
 });
 
 supabase.auth.onAuthStateChange((_event, session) => {
-  if (session) {
+  if (session && !state.deferAutoRedirect) {
     window.location.href = "./index.html";
   }
 });
