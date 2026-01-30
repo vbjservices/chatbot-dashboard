@@ -199,6 +199,35 @@ async function fetchProfileRowById(userId) {
   }
 }
 
+async function resolveAdminCredentialList() {
+  const users = Array.isArray(state.adminUsers) ? state.adminUsers : [];
+  if (!users.length) return [];
+
+  const resolved = await Promise.all(
+    users.map(async (user) => {
+      let url = user?.supabase_url || user?.supabaseUrl || "";
+      let anonKey = user?.supabase_anon_key || user?.supabaseAnonKey || "";
+
+      if (!url || !anonKey) {
+        const row = await fetchProfileRowById(user.id);
+        if (row) {
+          url = row.supabase_url || row.supabaseUrl || url;
+          anonKey = row.supabase_anon_key || row.supabaseAnonKey || anonKey;
+        }
+      }
+
+      return {
+        id: user.id,
+        label: user.full_name || user.email || user.id,
+        url,
+        anonKey,
+      };
+    })
+  );
+
+  return resolved.filter((u) => u.url && u.anonKey);
+}
+
 function getActiveCredentials() {
   if (state.adminView) {
     if (state.adminView.url && state.adminView.anonKey) {
@@ -211,6 +240,7 @@ function getActiveCredentials() {
 }
 
 function getCacheScope() {
+  if (state.isAdmin && !state.adminView) return "admin:all";
   if (state.adminView?.id) return `admin:${state.adminView.id}`;
   return state.userId || "";
 }
@@ -295,6 +325,11 @@ async function hydrateSidebarUser(user, profile) {
 /* ---------------- loading ---------------- */
 
 async function loadData({ preferNetwork = true } = {}) {
+  if (state.isAdmin && !state.adminView) {
+    await loadAllUsersData({ preferNetwork });
+    return;
+  }
+
   const activeCreds = getActiveCredentials();
   const hasConn = !!activeCreds;
   if (hasConn) {
@@ -404,6 +439,132 @@ async function loadData({ preferNetwork = true } = {}) {
   setLastUpdatePill("—");
   setVersionPill("—");
 
+  applyFiltersAndRender({ keepSelection: false });
+}
+
+async function loadAllUsersData({ preferNetwork = true } = {}) {
+  const sinceISO = rangeToSinceISO(state.filters.range);
+  const credsList = await resolveAdminCredentialList();
+  const total = credsList.length;
+
+  if (!total) {
+    setStatusPill("Disconnected");
+    setChatbotPill("Disconnected");
+    state.rows = [];
+    state.turns = [];
+    state.conversations = [];
+    state.filteredTurns = [];
+    state.filteredConvos = [];
+    state.selectedId = null;
+    setLastUpdatePill("â€”");
+    setVersionPill("â€”");
+    applyFiltersAndRender({ keepSelection: false });
+    return;
+  }
+
+  setChatbotPill("Multiple");
+
+  if (preferNetwork) {
+    try {
+      setStatusPill("Loading");
+
+      const results = await Promise.allSettled(
+        credsList.map((creds) => fetchSupabaseRows({ sinceISO, credentials: creds }))
+      );
+
+      const rows = [];
+      let successCount = 0;
+      let failureCount = 0;
+
+      for (const result of results) {
+        if (result.status === "fulfilled") {
+          successCount += 1;
+          if (Array.isArray(result.value)) rows.push(...result.value);
+        } else {
+          failureCount += 1;
+          console.warn("All-users fetch failed:", result.reason);
+        }
+      }
+
+      if (!rows.length) {
+        throw new Error("No rows fetched for All users.");
+      }
+
+      state.rows = rows;
+      state.turns = state.rows.map(normalizeChatEvent);
+      state.conversations = groupTurnsToConversations(state.turns);
+
+      state.lastLoadedAt = new Date().toISOString();
+      state.source = failureCount ? `Supabase (${successCount}/${total})` : "Supabase (All users)";
+
+      writeCache(
+        { turns: state.turns },
+        buildCacheMeta({ source: state.source, rowCount: state.rows.length, sinceISO }),
+        { scope: getCacheScope() }
+      );
+
+      setStatusPill("Connected", failureCount ? `${successCount}/${total}` : "");
+      if (failureCount) {
+        notify(`Some user connections failed (${successCount}/${total}).`, { variant: "warn", key: "all-users" });
+      }
+
+      setLastUpdatePill(
+        new Date(state.lastLoadedAt).toLocaleString("nl-NL", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
+
+      setVersionPill(pickVersion(state.turns));
+      applyFiltersAndRender({ keepSelection: true });
+      return;
+    } catch (e) {
+      console.warn("All-users Supabase fetch failed:", e);
+      // fallback below
+    }
+  }
+
+  const cached = readCache({ scope: getCacheScope() });
+  if (cached?.data?.turns?.length) {
+    state.rows = [];
+    state.turns = cached.data.turns;
+    state.conversations = groupTurnsToConversations(state.turns);
+
+    state.lastLoadedAt = cached?.meta?.cachedAt || null;
+    state.source = cached?.meta?.source || "Cache";
+
+    setStatusPill("Disconnected", "cached");
+
+    setLastUpdatePill(
+      state.lastLoadedAt
+        ? new Date(state.lastLoadedAt).toLocaleString("nl-NL", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "â€”"
+    );
+
+    setVersionPill(pickVersion(state.turns));
+    applyFiltersAndRender({ keepSelection: true });
+    return;
+  }
+
+  state.rows = [];
+  state.turns = [];
+  state.conversations = [];
+  state.filteredTurns = [];
+  state.filteredConvos = [];
+  state.selectedId = null;
+
+  setStatusPill("Disconnected");
+  setLastUpdatePill("â€”");
+  setVersionPill("â€”");
   applyFiltersAndRender({ keepSelection: false });
 }
 

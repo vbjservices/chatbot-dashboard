@@ -1,3 +1,0 @@
-id,email,full_name,company,has_password,is_admin,created_at,updated_at,supabase_url,supabase_anon_key
-96dd7ae8-9b63-4447-b4d0-8ccc0d060902,valentijnjacobs@me.com,V. J.,Test User,true,true,2026-01-29 12:45:16.298002+00,2026-01-29 12:45:16.298002+00,,
-ccfecf57-ef3f-4402-b276-195f0acd8102,vbjtechservices@gmail.com,VBJ Services,VBJ Services,false,false,2026-01-29 12:45:16.298002+00,2026-01-29 12:45:16.298002+00,,
